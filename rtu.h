@@ -107,6 +107,44 @@
 #define FCODE_RD_DEVICE_ID 43
 /* --> Diagnostics */
 
+/* <-- User1 (65..72) */
+#define FCODE_USER1_OFFSET 65
+
+/* byte-oriented functions - similar to standard MODBUS
+ * register rd/wr function but dedicated for devices with
+ * 16-bit byte-addressable space */
+
+/* REQUEST:
+ * | 2xbyte (src address)           |
+ * | 1xbyte (number of data bytes)  |
+ * REPLY:
+ * | 2xbyte (src address)           |
+ * | 1xbyte (number of data bytes)  |
+ * | 1xbyte (data[0])               |
+ * | ...                            |
+ * | 1xbyte (data[N-1])             | */
+#define FCODE_RD_BYTES (FCODE_USER1_OFFSET + 0)
+/* REQUEST:
+ * | 2xbyte (dst address)           |
+ * | 1xbyte (number of data bytes)  |
+ * | 1xbyte (data[0])               |
+ * | ...                            |
+ * | 1xbyte (data[N-1])             |
+ * REPLY:
+ * | 2xbyte (dst address)           |
+ * | 1xbyte (number of data bytes)  | */
+#define FCODE_WR_BYTES (FCODE_USER1_OFFSET + 1)
+/* --> User */
+
+/* Excption codes */
+#define ECODE_ILLEGAL_FUNCTION 0x1
+#define ECODE_ILLEGAL_DATA_ADDRESS 0x2
+#define ECODE_ILLEGAL_DATA_VALUE 0x3
+#define ECODE_SERVER_DEVICE_FAILURE 0x4
+
+#define ECODE_USER_OFFSET 0x80
+#define ECODE_FORMAT_ERROR (ECODE_USER_OFFSET + 0)
+
 /*
  * [Additional address] [Function code] [Data] [Error check]
  *

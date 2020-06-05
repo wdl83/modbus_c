@@ -275,7 +275,7 @@ restart:
         {
             /* confirmed End of Frame - verify CRC and process the ADU */
             adu_process(state);
-            (*state->resume_cb)(state->user_data);
+            if(state->resume_cb) (*state->resume_cb)(state->user_data);
         }
         else
         {
@@ -284,7 +284,7 @@ restart:
     }
     else if(IS_CURR_SOF(state->status))
     {
-        (*state->suspend_cb)(state->user_data);
+        if(state->suspend_cb) (*state->suspend_cb)(state->user_data);
         ASSERT(IS_PREV_IDLE(state->status));
     }
     else if(IS_CURR_RECV(state->status))

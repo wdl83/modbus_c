@@ -152,8 +152,8 @@ bool adu_check(const uint8_t *begin, const uint8_t *end)
 {
     if(ADU_MIN_SIZE > end - begin) return false;
 
-    const uint8_t crc_high = *(end - 2);
-    const uint8_t crc_low = *(end - 1);
+    const uint8_t crc_high = *(end - 1);
+    const uint8_t crc_low = *(end - 2);
     const crc_t crc_received = crc_high << 8 | crc_low;
     const crc_t crc_calculated = modbus_rtu_calc_crc(begin, end - 2);
 
@@ -196,11 +196,11 @@ void adu_process(state_t *state)
         if(state->txbuf_curr != dst_begin)
         {
             const crc_t crc = modbus_rtu_calc_crc(dst_begin, state->txbuf_curr);
-            const uint8_t crc_high = (crc >> 8) & 0xFF;
-            const uint8_t crc_low = crc & 0xFF;
+            const uint8_t crc_high = (crc & UINT16_C(0xFF00)) >> 8;
+            const uint8_t crc_low = crc & UINT16_C(0x00FF);
 
-            *(state->txbuf_curr) = (uint8_t)crc_high;
-            *(++state->txbuf_curr) = (uint8_t)crc_low;
+            *(state->txbuf_curr) = (uint8_t)crc_low;
+            *(++state->txbuf_curr) = (uint8_t)crc_high;
             ++(state->txbuf_curr);
             state->serial_send(state, serial_sent_cb);
         }

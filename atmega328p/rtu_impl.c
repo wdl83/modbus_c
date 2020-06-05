@@ -16,7 +16,7 @@
  * 1750us / 16us = 109,37 ~ 110 x 16us = 1760us
  * f = f_clk / (2 x N x (OCRA0 + 1) */
 
-static
+static inline
 void tmr_init(void)
 {
     TMR0_MODE_CTC();
@@ -69,7 +69,7 @@ void tmr_reset(modbus_rtu_state_t *state)
     TMR0_CLK_WR(value);
 }
 
-static
+static inline
 void usart_init(void)
 {
     USART0_BR(CALC_BR(CPU_CLK, 19200));
@@ -89,9 +89,6 @@ void usart_rx_recv_cb(uint8_t data, usart_rxflags_t flags, uintptr_t user_data)
     }
     else
     {
-        usart_rxflags_str_t flags_str;
-
-        usart_rxflags_str(flags_str, &flags);
         (*state->serial_recv_err_cb)(state, data);
     }
 }

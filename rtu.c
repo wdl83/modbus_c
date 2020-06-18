@@ -3,7 +3,6 @@
 #include <stdint.h>
 #include <string.h>
 
-#include <drv/assert.h>
 #include <drv/tlog.h>
 
 #include <modbus-c/crc.h>
@@ -45,8 +44,6 @@ void reset_txbuf(state_t *state)
 static
 void timer_silent_interval_cb(state_t *state)
 {
-    ASSERT(NULL != state);
-
     if(IS_CURR_INIT(state->status))
     {
         /* INIT -> IDLE happens on start/restart */
@@ -63,7 +60,6 @@ void timer_silent_interval_cb(state_t *state)
     {
         RTU_STATE_ERROR(state->status);
         TLOG_TP();
-        ASSERT(NULL);
     }
 }
 
@@ -83,8 +79,8 @@ void timer_inter_frame_timeout_cb(state_t *state)
     }
     else
     {
-        RTU_STATE_ERROR(state->status);
         TLOG_TP();
+        RTU_STATE_ERROR(state->status);
     }
 }
 
@@ -98,7 +94,7 @@ void rxbuf_append(state_t *state, uint8_t data)
     }
     else
     {
-        ASSERT(NULL);
+        TLOG_TP();
         RTU_STATE_ERROR(state->status);
     }
 }
@@ -106,8 +102,6 @@ void rxbuf_append(state_t *state, uint8_t data)
 static
 void serial_recv_cb(state_t *state, uint8_t data)
 {
-    ASSERT(NULL != state);
-
     if(IS_CURR_IDLE(state->status))
     {
         /* 1st character - SOF detected
@@ -143,7 +137,6 @@ void serial_recv_err_cb(state_t *state, uint8_t data)
 {
     /* transmission error */
     RTU_STATE_ERROR(state->status);
-    (*state->timer_reset)(state);
     TLOG_TP();
 }
 
@@ -279,13 +272,19 @@ restart:
         }
         else
         {
-            ASSERT(NULL);
+            TLOG_TP();
+            goto restart;
         }
     }
     else if(IS_CURR_SOF(state->status))
     {
         if(state->suspend_cb) (*state->suspend_cb)(state->user_data);
-        ASSERT(IS_PREV_IDLE(state->status));
+
+        if(!IS_PREV_IDLE(state->status))
+        {
+            TLOG_TP();
+            goto restart;
+        }
     }
     else if(IS_CURR_RECV(state->status))
     {
@@ -294,11 +293,16 @@ restart:
     }
     else if(IS_CURR_EOF(state->status))
     {
-        ASSERT(IS_PREV_RECV(state->status));
+        if(!IS_PREV_RECV(state->status))
+        {
+            TLOG_TP();
+            goto restart;
+        }
     }
     else
     {
-        ASSERT(NULL);
+        TLOG_TP();
+        goto restart;
     }
 }
 

@@ -89,6 +89,14 @@ void usart_rx_recv_cb(uint8_t data, usart_rxflags_t flags, uintptr_t user_data)
     }
     else
     {
+        {
+            /* USART0 RX queue flushing in case of reception errors
+             * TODO: verify if this is required */
+            while(USART0_RX_READY())
+            {
+                uint8_t data = USART0_RD();
+            }
+        }
         (*state->serial_recv_err_cb)(state, data);
     }
 }

@@ -78,7 +78,7 @@ uint8_t *read_n16(
         FCODE_RD_HOLDING_REGISTERS, ECODE_ILLEGAL_DATA_VALUE, reply);
 
     RETURN_EXCEPTION_IF_NOT(
-        rtu_mem_end > addr + num,
+        rtu_mem_end >= addr + num,
         FCODE_RD_HOLDING_REGISTERS, ECODE_ILLEGAL_DATA_ADDRESS, reply);
 
     RTU_TLOG_PRINTF("RA%04" PRIX16 " N%02" PRIX8, addr, (uint8_t)num);
@@ -229,7 +229,7 @@ uint8_t *read_n8(
         FCODE_RD_BYTES, ECODE_ILLEGAL_DATA_VALUE, reply);
 
     RETURN_EXCEPTION_IF_NOT(
-        rtu_mem_end > addr + num,
+        rtu_mem_end >= addr + num,
         FCODE_RD_BYTES, ECODE_ILLEGAL_DATA_ADDRESS, reply);
 
     RTU_TLOG_PRINTF("nR8A%04" PRIX16 " N%02" PRIX8, addr, num);
@@ -315,6 +315,14 @@ uint8_t *rtu_memory_pdu_cb(
     else if(FCODE_WR_REGISTERS == fcode)
     {
         dst_begin = write_n16(rtu_memory, begin, end, curr, dst_begin);
+    }
+    else if(FCODE_RD_BYTES == fcode)
+    {
+        dst_begin = read_n8(rtu_memory, begin, end, curr, dst_begin);
+    }
+    else if(FCODE_WR_BYTES == fcode)
+    {
+        dst_begin = write_n8(rtu_memory, begin, end, curr, dst_begin);
     }
     else
     {

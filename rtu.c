@@ -202,6 +202,7 @@ void adu_process(state_t *state)
 
 void modbus_rtu_init(
     state_t *state,
+    modbus_rtu_addr_t addr,
     modbus_rtu_timer_start_t timer_start_1t5,
     modbus_rtu_timer_start_t timer_start_3t5,
     modbus_rtu_timer_stop_t timer_stop,
@@ -220,6 +221,8 @@ void modbus_rtu_init(
             .prev = RTU_STATE_INIT,
             .curr = RTU_STATE_INIT
         };
+
+    state->addr = addr;
     state->timer_start_1t5 = timer_start_1t5;
     state->timer_start_3t5 = timer_start_3t5;
     state->timer_stop = timer_stop;
@@ -304,6 +307,11 @@ restart:
         TLOG_TP();
         goto restart;
     }
+}
+
+modbus_rtu_addr_t modbus_rtu_addr(modbus_rtu_state_t *state)
+{
+    return state->addr;
 }
 
 bool modbus_rtu_idle(modbus_rtu_state_t *state)

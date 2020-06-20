@@ -245,6 +245,8 @@ struct modbus_rtu_state
 {
     modbus_rtu_status_t status;
 
+    modbus_rtu_addr_t addr;
+
     modbus_rtu_timer_start_t timer_start_1t5;
     modbus_rtu_timer_start_t timer_start_3t5;
     modbus_rtu_timer_stop_t timer_stop;
@@ -271,6 +273,7 @@ struct modbus_rtu_state
 
 void modbus_rtu_init(
     modbus_rtu_state_t *,
+    modbus_rtu_addr_t,
     modbus_rtu_timer_start_t /* 1,5t*/,
     modbus_rtu_timer_start_t /* 3,5t */,
     modbus_rtu_timer_stop_t,
@@ -283,4 +286,5 @@ void modbus_rtu_init(
 
 void modbus_rtu_event(modbus_rtu_state_t *);
 
+modbus_rtu_addr_t modbus_rtu_addr(modbus_rtu_state_t *state);
 bool modbus_rtu_idle(modbus_rtu_state_t *);

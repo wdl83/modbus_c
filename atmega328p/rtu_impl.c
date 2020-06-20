@@ -92,10 +92,7 @@ void usart_rx_recv_cb(uint8_t data, usart_rxflags_t flags, uintptr_t user_data)
         {
             /* USART0 RX queue flushing in case of reception errors
              * TODO: verify if this is required */
-            while(USART0_RX_READY())
-            {
-                uint8_t data = USART0_RD();
-            }
+            while(USART0_RX_READY()) (void)USART0_RD();
         }
         (*state->serial_recv_err_cb)(state, data);
     }
@@ -118,6 +115,7 @@ void serial_send(modbus_rtu_state_t *state, modbus_rtu_serial_sent_cb_t sent_cb)
 
 void modbus_rtu_impl(
     modbus_rtu_state_t *state,
+    modbus_rtu_addr_t addr,
     modbus_rtu_suspend_cb_t suspend_cb,
     modbus_rtu_resume_cb_t resume_cb,
     modbus_rtu_pdu_cb_t pdu_cb,
@@ -128,6 +126,7 @@ void modbus_rtu_impl(
 
     modbus_rtu_init(
         state,
+        addr,
         tmr_start_1t5, tmr_start_3t5, tmr_stop, tmr_reset,
         serial_send,
         pdu_cb,

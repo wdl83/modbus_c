@@ -214,7 +214,9 @@ enum
     RTU_STATE_IDLE,
     RTU_STATE_SOF,
     RTU_STATE_RECV,
-    RTU_STATE_EOF
+    RTU_STATE_EOF,
+    /* transmission in progress */
+    RTU_STATE_BUSY
 };
 
 typedef union
@@ -269,6 +271,7 @@ struct modbus_rtu_state
     uint8_t txbuf[TXBUF_CAPACITY];
     uint8_t *txbuf_curr;
     uintptr_t user_data;
+    uint8_t err_cntr;
 };
 
 void modbus_rtu_init(

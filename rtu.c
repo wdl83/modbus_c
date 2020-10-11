@@ -18,12 +18,14 @@ typedef modbus_rtu_state_t state_t;
 #define IS_CURR_SOF(status) (RTU_STATE_SOF == (status.curr))
 #define IS_CURR_RECV(status) (RTU_STATE_RECV == (status.curr))
 #define IS_CURR_EOF(status) (RTU_STATE_EOF == (status.curr))
+#define IS_CURR_BUSY(status) (RTU_STATE_BUSY == (status.curr))
 
 #define IS_PREV_INIT(status) (RTU_STATE_INIT == (status.prev))
 #define IS_PREV_IDLE(status) (RTU_STATE_IDLE == (status.prev))
 #define IS_PREV_SOF(status) (RTU_STATE_SOF == (status.prev))
 #define IS_PREV_RECV(status) (RTU_STATE_RECV == (status.prev))
 #define IS_PREV_EOF(status) (RTU_STATE_EOF == (status.prev))
+#define IS_PREV_BUSY(status) (RTU_STATE_BUSY == (status.prev))
 
 #define IS_ERR(status) (status.error)
 
@@ -120,24 +122,33 @@ void serial_recv_cb(state_t *state, uint8_t data)
     }
     else
     {
+        TLOG_XPRINT8("SRSTERR", state->status.curr);
         RTU_STATE_ERROR(state->status);
-        TLOG_TP();
     }
 }
 
 static
 void serial_sent_cb(state_t *state)
 {
-    TLOG_PRINTF("SLEN %02" PRIX8, state->txbuf_curr - state->txbuf);
-    state->txbuf_curr = state->txbuf;
+    if(IS_CURR_BUSY(state->status))
+    {
+        TLOG_XPRINT16("SLEN", (uint16_t)(state->txbuf_curr - state->txbuf));
+        state->txbuf_curr = state->txbuf;
+        RTU_STATE_UPDATE(state->status, RTU_STATE_INIT);
+    }
+    else
+    {
+        TLOG_TP();
+        RTU_STATE_ERROR(state->status);
+    }
 }
 
 static
 void serial_recv_err_cb(state_t *state, uint8_t data)
 {
     /* transmission error */
+    TLOG_XPRINT8("SRERR", state->status.curr);
     RTU_STATE_ERROR(state->status);
-    TLOG_TP();
 }
 
 static
@@ -152,7 +163,8 @@ bool adu_check(const uint8_t *begin, const uint8_t *end)
 
     if(crc_received != crc_calculated)
     {
-        TLOG_PRINTF("CRC %04" PRIX16 " %04" PRIX16, crc_received, crc_calculated);
+        TLOG_XPRINT16("rCRC", crc_received);
+        TLOG_XPRINT16("cCRC", crc_calculated);
         return false;
     }
     return true;
@@ -171,8 +183,14 @@ void adu_process(state_t *state)
         uint8_t *dst_begin = state->txbuf;
         uint8_t *dst_end = state->txbuf + TXBUF_CAPACITY - sizeof(crc_t);
 
-        /* previous response transmission still in progress */
-        if(state->txbuf_curr != state->txbuf) return;
+        /* previous response transmission still in progress
+         * this case should never happen (BUSY state) */
+        if(state->txbuf_curr != state->txbuf)
+        {
+            TLOG_TP();
+            RTU_STATE_ERROR(state->status);
+            return;
+        }
 
         state->txbuf_curr =
             (*state->pdu_cb)(
@@ -195,8 +213,14 @@ void adu_process(state_t *state)
             *(state->txbuf_curr) = (uint8_t)crc_low;
             *(++state->txbuf_curr) = (uint8_t)crc_high;
             ++(state->txbuf_curr);
+            RTU_STATE_UPDATE(state->status, RTU_STATE_BUSY);
             state->serial_send(state, serial_sent_cb);
         }
+    }
+    else
+    {
+        TLOG_TP();
+        RTU_STATE_ERROR(state->status);
     }
 }
 
@@ -236,6 +260,7 @@ void modbus_rtu_init(
     state->suspend_cb = suspend_cb;
     state->resume_cb = resume_cb;
     state->user_data = user_data;
+    state->err_cntr = 0;
     reset_rxbuf(state);
     reset_txbuf(state);
 }
@@ -247,7 +272,8 @@ void modbus_rtu_event(state_t *state)
 
     if(IS_ERR(state->status))
     {
-        TLOG_TP();
+        ++state->err_cntr;
+        TLOG_XPRINT8("ECNTR", state->err_cntr);
         RTU_STATE_UPDATE(state->status, RTU_STATE_INIT);
         state->status.updated = 0;
         state->status.error = 0;
@@ -257,7 +283,7 @@ void modbus_rtu_event(state_t *state)
     {
 restart:
         reset_rxbuf(state);
-        reset_rxbuf(state);
+        reset_txbuf(state);
         (*state->timer_stop)(state);
         state->timer_cb = timer_silent_interval_cb;
         (*state->timer_start_3t5)(state);
@@ -301,6 +327,9 @@ restart:
             TLOG_TP();
             goto restart;
         }
+    }
+    else if(IS_CURR_BUSY(state->status))
+    {
     }
     else
     {

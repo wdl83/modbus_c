@@ -81,7 +81,8 @@ uint8_t *read_n16(
         rtu_mem_end >= addr + num,
         FCODE_RD_HOLDING_REGISTERS, ECODE_ILLEGAL_DATA_ADDRESS, reply);
 
-    RTU_TLOG_PRINTF("RA%04" PRIX16 " N%02" PRIX8, addr, (uint8_t)num);
+    RTU_TLOG_XPRINT16("R", addr);
+    RTU_TLOG_XPRINT8("N", (uint8_t)num);
 
     /* fcode */
     *reply++ = UINT8_C(FCODE_RD_HOLDING_REGISTERS);
@@ -129,7 +130,8 @@ uint8_t *write_16(
         UINT16_C(0xFF00) & data,
         FCODE_WR_REGISTER, ECODE_ILLEGAL_DATA_VALUE, reply);
 
-    RTU_TLOG_PRINTF("WA%04" PRIX16 " D%04" PRIX16, addr, data);
+    RTU_TLOG_XPRINT16("W", addr);
+    RTU_TLOG_XPRINT16("D", data);
 
     rtu_memory->bytes[addr - rtu_mem_begin] = data;
 
@@ -176,7 +178,8 @@ uint8_t *write_n16(
         byte_count != end - curr,
         FCODE_WR_REGISTERS, ECODE_FORMAT_ERROR, reply);
 
-    RTU_TLOG_PRINTF("nWA%04" PRIX16 " N%02" PRIX8, addr, (uint8_t)num);
+    RTU_TLOG_XPRINT16("nW", addr);
+    RTU_TLOG_XPRINT8("N", (uint8_t)num);
 
     uint16_t addr_begin = addr - rtu_mem_begin;
     const uint16_t addr_end = addr_begin + num;
@@ -232,7 +235,8 @@ uint8_t *read_n8(
         rtu_mem_end >= addr + num,
         FCODE_RD_BYTES, ECODE_ILLEGAL_DATA_ADDRESS, reply);
 
-    RTU_TLOG_PRINTF("nR8A%04" PRIX16 " N%02" PRIX8, addr, num);
+    RTU_TLOG_XPRINT16("nR8", addr);
+    RTU_TLOG_XPRINT8("N", num);
 
     reply = memcpy(reply, begin, request_size) + request_size;
 
@@ -281,7 +285,8 @@ uint8_t *write_n8(
         num != end - curr,
         FCODE_WR_BYTES, ECODE_ILLEGAL_DATA_VALUE, reply);
 
-    RTU_TLOG_PRINTF("nW8%04" PRIX16 " N%02" PRIX8, addr, (uint8_t)num);
+    RTU_TLOG_XPRINT16("nW8", addr);
+    RTU_TLOG_XPRINT8("N", (uint8_t)num);
 
     uint16_t offset_begin = addr - rtu_mem_begin;
     const uint16_t offset_end = offset_begin + num;

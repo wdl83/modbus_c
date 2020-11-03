@@ -2,7 +2,7 @@
 
 #include <stdint.h>
 
-#include <modbus-c/rtu.h>
+#include <modbus_c/rtu.h>
 
 void modbus_rtu_impl(
     modbus_rtu_state_t *,

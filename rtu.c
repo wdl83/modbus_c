@@ -5,8 +5,8 @@
 
 #include <drv/tlog.h>
 
-#include <modbus-c/crc.h>
-#include <modbus-c/rtu.h>
+#include <modbus_c/crc.h>
+#include <modbus_c/rtu.h>
 
 typedef modbus_rtu_addr_t addr_t;
 typedef modbus_rtu_crc_t crc_t;

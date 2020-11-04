@@ -46,6 +46,7 @@ uint8_t *except(fcode_t fcode, ecode_t ecode, uint8_t *reply)
 #define RETURN_EXCEPTION_IF_NOT(cond, fcode, ecode, reply) \
     RETURN_EXCEPTION_IF(!(cond), (fcode), (ecode), (reply))
 
+#ifndef MODBUS_RTU_MEMORY_RD_HOLDING_REGISTERS_DISABLED
 static
 uint8_t *read_n16(
     rtu_memory_t *rtu_memory,
@@ -100,7 +101,9 @@ uint8_t *read_n16(
 
     return reply;
 }
+#endif /* MODBUS_RTU_MEMORY_RD_HOLDING_REGISTERS_DISABLED */
 
+#ifndef MODBUS_RTU_MEMORY_WR_REGISTER_DISABLED
 static
 uint8_t *write_16(
     rtu_memory_t *rtu_memory,
@@ -137,7 +140,9 @@ uint8_t *write_16(
 
     return memcpy(reply, begin, request_size) + request_size;
 }
+#endif /* MODBUS_RTU_MEMORY_WR_REGISTER_DISABLED */
 
+#ifndef MODBUS_RTU_MEMORY_WR_REGISTERS_DISABLED
 static
 uint8_t *write_n16(
     rtu_memory_t *rtu_memory,
@@ -198,6 +203,7 @@ uint8_t *write_n16(
 
     return memcpy(reply, begin, request_size) + request_size;
 }
+#endif /* MODBUS_RTU_MEMORY_WR_REGISTERS_DISABLED */
 
 static
 uint8_t *read_n8(
@@ -309,29 +315,43 @@ uint8_t *rtu_memory_pdu_cb(
     const uint8_t *curr,
     uint8_t *dst_begin, const uint8_t *const dst_end)
 {
+#ifndef MODBUS_RTU_MEMORY_RD_HOLDING_REGISTERS_DISABLED
     if(FCODE_RD_HOLDING_REGISTERS == fcode)
     {
         dst_begin = read_n16(rtu_memory, begin, end, curr, dst_begin);
+        goto exit;
     }
-    else if(FCODE_WR_REGISTER == fcode)
+#endif
+
+#ifndef MODBUS_RTU_MEMORY_WR_REGISTER_DISABLED
+    if(FCODE_WR_REGISTER == fcode)
     {
         dst_begin = write_16(rtu_memory, begin, end, curr, dst_begin);
+        goto exit;
     }
-    else if(FCODE_WR_REGISTERS == fcode)
+#endif
+
+#ifndef MODBUS_RTU_MEMORY_WR_REGISTERS_DISABLED
+    if(FCODE_WR_REGISTERS == fcode)
     {
         dst_begin = write_n16(rtu_memory, begin, end, curr, dst_begin);
+        goto exit;
     }
-    else if(FCODE_RD_BYTES == fcode)
+#endif
+
+    if(FCODE_RD_BYTES == fcode)
     {
         dst_begin = read_n8(rtu_memory, begin, end, curr, dst_begin);
+        goto exit;
     }
-    else if(FCODE_WR_BYTES == fcode)
+
+    if(FCODE_WR_BYTES == fcode)
     {
         dst_begin = write_n8(rtu_memory, begin, end, curr, dst_begin);
+        goto exit;
     }
-    else
-    {
-        dst_begin = except(fcode, ECODE_ILLEGAL_FUNCTION, dst_begin);
-    }
+
+    dst_begin = except(fcode, ECODE_ILLEGAL_FUNCTION, dst_begin);
+exit:
     return dst_begin;
 }

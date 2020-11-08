@@ -272,6 +272,8 @@ struct modbus_rtu_state
     uint8_t *txbuf_curr;
     uintptr_t user_data;
     uint8_t err_cntr;
+    uint8_t serial_recv_err_cntr;
+    uint8_t crc_err_cntr;
 };
 
 void modbus_rtu_init(

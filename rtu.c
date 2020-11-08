@@ -60,8 +60,8 @@ void timer_silent_interval_cb(state_t *state)
     }
     else
     {
-        RTU_STATE_ERROR(state->status);
         TLOG_TP();
+        RTU_STATE_ERROR(state->status);
     }
 }
 
@@ -122,7 +122,7 @@ void serial_recv_cb(state_t *state, uint8_t data)
     }
     else
     {
-        TLOG_XPRINT8("SRSTERR", state->status.curr);
+        TLOG_TP();
         RTU_STATE_ERROR(state->status);
     }
 }
@@ -132,7 +132,7 @@ void serial_sent_cb(state_t *state)
 {
     if(IS_CURR_BUSY(state->status))
     {
-        TLOG_XPRINT16("SLEN", (uint16_t)(state->txbuf_curr - state->txbuf));
+        //TLOG_XPRINT16("SLEN", (uint16_t)(state->txbuf_curr - state->txbuf));
         state->txbuf_curr = state->txbuf;
         RTU_STATE_UPDATE(state->status, RTU_STATE_INIT);
     }
@@ -147,12 +147,12 @@ static
 void serial_recv_err_cb(state_t *state, uint8_t data)
 {
     /* transmission error */
-    TLOG_XPRINT8("SRERR", state->status.curr);
+    ++state->serial_recv_err_cntr;
     RTU_STATE_ERROR(state->status);
 }
 
 static
-bool adu_check(const uint8_t *begin, const uint8_t *end)
+bool adu_check(state_t *state, const uint8_t *begin, const uint8_t *end)
 {
     if(ADU_MIN_SIZE > end - begin) return false;
 
@@ -163,8 +163,9 @@ bool adu_check(const uint8_t *begin, const uint8_t *end)
 
     if(crc_received != crc_calculated)
     {
-        TLOG_XPRINT16("rCRC", crc_received);
-        TLOG_XPRINT16("cCRC", crc_calculated);
+        //TLOG_XPRINT16("rCRC", crc_received);
+        //TLOG_XPRINT16("cCRC", crc_calculated);
+        ++state->crc_err_cntr;
         return false;
     }
     return true;
@@ -173,7 +174,7 @@ bool adu_check(const uint8_t *begin, const uint8_t *end)
 static
 void adu_process(state_t *state)
 {
-    if(adu_check(state->rxbuf, state->rxbuf_curr))
+    if(adu_check(state, state->rxbuf, state->rxbuf_curr))
     {
         const addr_t addr =  state->rxbuf[0];
         const fcode_t fcode = state->rxbuf[1];
@@ -182,15 +183,6 @@ void adu_process(state_t *state)
         uint8_t *src_end = state->rxbuf_curr - sizeof(crc_t);
         uint8_t *dst_begin = state->txbuf;
         uint8_t *dst_end = state->txbuf + TXBUF_CAPACITY - sizeof(crc_t);
-
-        /* previous response transmission still in progress
-         * this case should never happen (BUSY state) */
-        if(state->txbuf_curr != state->txbuf)
-        {
-            TLOG_TP();
-            RTU_STATE_ERROR(state->status);
-            return;
-        }
 
         state->txbuf_curr =
             (*state->pdu_cb)(
@@ -261,6 +253,8 @@ void modbus_rtu_init(
     state->resume_cb = resume_cb;
     state->user_data = user_data;
     state->err_cntr = 0;
+    state->serial_recv_err_cntr = 0;
+    state->crc_err_cntr = 0;
     reset_rxbuf(state);
     reset_txbuf(state);
 }
@@ -270,10 +264,22 @@ void modbus_rtu_event(state_t *state)
     if(!state->status.updated) return;
     else state->status.updated = 0;
 
+    /* interrupts should be disabled until this funtion return */
+
     if(IS_ERR(state->status))
     {
+error:
         ++state->err_cntr;
-        TLOG_XPRINT8("ECNTR", state->err_cntr);
+
+        TLOG_XPRINT16(
+            "ERR",
+            ((uint16_t)state->err_cntr << 8) | state->serial_recv_err_cntr);
+
+        if(state->crc_err_cntr)
+        {
+            TLOG_XPRINT8("ERRCRC", state->crc_err_cntr);
+        }
+
         RTU_STATE_UPDATE(state->status, RTU_STATE_INIT);
         state->status.updated = 0;
         state->status.error = 0;
@@ -295,6 +301,15 @@ restart:
         }
         else if(IS_PREV_EOF(state->status))
         {
+
+            /* previous response transmission still in progress
+             * this case should never happen (BUSY state) */
+            if(state->txbuf_curr != state->txbuf)
+            {
+                TLOG_TP();
+                goto error;
+            }
+
             /* confirmed End of Frame - verify CRC and process the ADU */
             adu_process(state);
             if(state->resume_cb) (*state->resume_cb)(state->user_data);
@@ -302,7 +317,7 @@ restart:
         else
         {
             TLOG_TP();
-            goto restart;
+            goto error;
         }
     }
     else if(IS_CURR_SOF(state->status))
@@ -312,7 +327,7 @@ restart:
         if(!IS_PREV_IDLE(state->status))
         {
             TLOG_TP();
-            goto restart;
+            goto error;
         }
     }
     else if(IS_CURR_RECV(state->status))
@@ -325,16 +340,17 @@ restart:
         if(!IS_PREV_RECV(state->status))
         {
             TLOG_TP();
-            goto restart;
+            goto error;
         }
     }
     else if(IS_CURR_BUSY(state->status))
     {
+        /* reply transmission in progress */
     }
     else
     {
         TLOG_TP();
-        goto restart;
+        goto error;
     }
 }
 

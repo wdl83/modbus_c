@@ -8,7 +8,7 @@
  * calculating 8-bit timer prescaler value:
  *
  *  t1,5 = 750us / 255 (8-bit timer) ~3us (3us * 255 == 765us)
- *  t3,5 = 1750us / 255 (-bit timer) ~7us (7us * 255 == 1785us)
+ *  t3,5 = 1750us / 255 (8-bit timer) ~7us (7us * 255 == 1785us)
  *
  * 16MHz = 16 * 10^6Hz / 256 = 62500Hz  == 16us
  *

@@ -60,7 +60,7 @@ void timer_silent_interval_cb(state_t *state)
     }
     else
     {
-        TLOG_TP();
+        TLOG_XPRINT8("SIE", state->status.value);
         RTU_STATE_ERROR(state->status);
     }
 }
@@ -81,7 +81,7 @@ void timer_inter_frame_timeout_cb(state_t *state)
     }
     else
     {
-        TLOG_TP();
+        TLOG_XPRINT8("IFE", state->status.value);
         RTU_STATE_ERROR(state->status);
     }
 }
@@ -96,7 +96,7 @@ void rxbuf_append(state_t *state, uint8_t data)
     }
     else
     {
-        TLOG_TP();
+        TLOG_XPRINT8("RAE", state->status.value);
         RTU_STATE_ERROR(state->status);
     }
 }
@@ -122,7 +122,7 @@ void serial_recv_cb(state_t *state, uint8_t data)
     }
     else
     {
-        TLOG_TP();
+        TLOG_XPRINT8("SRE", state->status.value);
         RTU_STATE_ERROR(state->status);
     }
 }
@@ -138,7 +138,7 @@ void serial_sent_cb(state_t *state)
     }
     else
     {
-        TLOG_TP();
+        TLOG_XPRINT8("SSE", state->status.value);
         RTU_STATE_ERROR(state->status);
     }
 }
@@ -211,7 +211,7 @@ void adu_process(state_t *state)
     }
     else
     {
-        TLOG_TP();
+        TLOG_XPRINT8("APE", state->status.value);
         RTU_STATE_ERROR(state->status);
     }
 }

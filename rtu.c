@@ -5,29 +5,29 @@
 
 #include <drv/tlog.h>
 
-#include <modbus_c/crc.h>
-#include <modbus_c/rtu.h>
+#include "crc.h"
+#include "rtu.h"
 
 typedef modbus_rtu_addr_t addr_t;
 typedef modbus_rtu_crc_t crc_t;
 typedef modbus_rtu_fcode_t fcode_t;
 typedef modbus_rtu_state_t state_t;
 
-#define IS_CURR_INIT(status) (RTU_STATE_INIT == (status.curr))
-#define IS_CURR_IDLE(status) (RTU_STATE_IDLE == (status.curr))
-#define IS_CURR_SOF(status) (RTU_STATE_SOF == (status.curr))
-#define IS_CURR_RECV(status) (RTU_STATE_RECV == (status.curr))
-#define IS_CURR_EOF(status) (RTU_STATE_EOF == (status.curr))
-#define IS_CURR_BUSY(status) (RTU_STATE_BUSY == (status.curr))
+#define IS_CURR_INIT(status) (RTU_STATE_INIT == (status.bits.curr))
+#define IS_CURR_IDLE(status) (RTU_STATE_IDLE == (status.bits.curr))
+#define IS_CURR_SOF(status) (RTU_STATE_SOF == (status.bits.curr))
+#define IS_CURR_RECV(status) (RTU_STATE_RECV == (status.bits.curr))
+#define IS_CURR_EOF(status) (RTU_STATE_EOF == (status.bits.curr))
+#define IS_CURR_BUSY(status) (RTU_STATE_BUSY == (status.bits.curr))
 
-#define IS_PREV_INIT(status) (RTU_STATE_INIT == (status.prev))
-#define IS_PREV_IDLE(status) (RTU_STATE_IDLE == (status.prev))
-#define IS_PREV_SOF(status) (RTU_STATE_SOF == (status.prev))
-#define IS_PREV_RECV(status) (RTU_STATE_RECV == (status.prev))
-#define IS_PREV_EOF(status) (RTU_STATE_EOF == (status.prev))
-#define IS_PREV_BUSY(status) (RTU_STATE_BUSY == (status.prev))
+#define IS_PREV_INIT(status) (RTU_STATE_INIT == (status.bits.prev))
+#define IS_PREV_IDLE(status) (RTU_STATE_IDLE == (status.bits.prev))
+#define IS_PREV_SOF(status) (RTU_STATE_SOF == (status.bits.prev))
+#define IS_PREV_RECV(status) (RTU_STATE_RECV == (status.bits.prev))
+#define IS_PREV_EOF(status) (RTU_STATE_EOF == (status.bits.prev))
+#define IS_PREV_BUSY(status) (RTU_STATE_BUSY == (status.bits.prev))
 
-#define IS_ERR(status) (status.error)
+#define IS_ERR(status) (status.bits.error)
 
 static
 void reset_rxbuf(state_t *state)
@@ -146,6 +146,7 @@ void serial_sent_cb(state_t *state)
 static
 void serial_recv_err_cb(state_t *state, uint8_t data)
 {
+    (void)data;
     /* transmission error */
     ++state->serial_recv_err_cntr;
     RTU_STATE_ERROR(state->status);
@@ -229,15 +230,13 @@ void modbus_rtu_init(
     modbus_rtu_resume_cb_t resume_cb,
     uintptr_t user_data)
 {
-    state->status =
-        (modbus_rtu_status_t)
-        {
-            .updated = 1,
-            .error = 0,
-            .prev = RTU_STATE_INIT,
-            .curr = RTU_STATE_INIT
-        };
+    modbus_rtu_status_t status = {0};
 
+    status.bits.updated = 1;
+    status.bits.prev = RTU_STATE_INIT;
+    status.bits.curr = RTU_STATE_INIT;
+
+    state->status = status;
     state->addr = addr;
     state->timer_start_1t5 = timer_start_1t5;
     state->timer_start_3t5 = timer_start_3t5;
@@ -261,8 +260,8 @@ void modbus_rtu_init(
 
 void modbus_rtu_event(state_t *state)
 {
-    if(!state->status.updated) return;
-    else state->status.updated = 0;
+    if(!state->status.bits.updated) return;
+    else state->status.bits.updated = 0;
 
     /* interrupts should be disabled until this funtion return */
 
@@ -281,8 +280,8 @@ error:
         }
 
         RTU_STATE_UPDATE(state->status, RTU_STATE_INIT);
-        state->status.updated = 0;
-        state->status.error = 0;
+        state->status.bits.updated = 0;
+        state->status.bits.error = 0;
         goto restart;
     }
     else if(IS_CURR_INIT(state->status))

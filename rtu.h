@@ -221,24 +221,24 @@ enum
 
 typedef union
 {
+    uint8_t value;
     struct
     {
         uint8_t updated : 1;
         uint8_t error : 1;
         uint8_t prev : 3;
         uint8_t curr : 3;
-    };
-    uint8_t value;
+    } bits;
 }  modbus_rtu_status_t;
 
 #define RTU_STATE_UPDATE(status, state) \
-    status.updated = 1; \
-    status.prev = status.curr; \
-    status.curr = state;
+    status.bits.updated = 1; \
+    status.bits.prev = status.bits.curr; \
+    status.bits.curr = state;
 
 #define RTU_STATE_ERROR(status) \
-    status.updated = 1; \
-    status.error = 1;
+    status.bits.updated = 1; \
+    status.bits.error = 1;
 
 #define RXBUF_CAPACITY ADU_CAPACITY
 #define TXBUF_CAPACITY ADU_CAPACITY

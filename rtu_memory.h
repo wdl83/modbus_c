@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stddef.h>
+#include <stdint.h>
 
 #include "rtu.h"
 
@@ -8,12 +9,7 @@ typedef struct
 {
     uint16_t addr_begin;
     uint16_t addr_end;
-
-    union
-    {
-        uint16_t words[0];
-        uint8_t bytes[0];
-    };
+    uint8_t bytes[];
 } rtu_memory_t;
 
 uint8_t *rtu_memory_pdu_cb(

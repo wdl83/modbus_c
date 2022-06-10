@@ -4,13 +4,15 @@
 #include "rtu_memory.h"
 #include "rtu_tlog.h"
 
+#include <drv/util.h>
+
 typedef modbus_rtu_addr_t addr_t;
 typedef modbus_rtu_crc_t crc_t;
 typedef modbus_rtu_ecode_t ecode_t;
 typedef modbus_rtu_fcode_t fcode_t;
 typedef modbus_rtu_state_t state_t;
 
-static inline
+static
 uint16_t rd16(const uint8_t *src)
 {
     const uint8_t high = *src++;
@@ -18,7 +20,7 @@ uint16_t rd16(const uint8_t *src)
     return high << 8 | low;
 }
 
-static inline
+static
 uint8_t *wr16(uint8_t *dst, uint16_t data)
 {
     *dst++ = data >> 8;
@@ -26,7 +28,7 @@ uint8_t *wr16(uint8_t *dst, uint16_t data)
     return dst;
 }
 
-static inline
+static
 uint8_t *except(fcode_t fcode, ecode_t ecode, uint8_t *reply)
 {
     *reply++ = fcode + UINT8_C(0x80);
@@ -35,13 +37,14 @@ uint8_t *except(fcode_t fcode, ecode_t ecode, uint8_t *reply)
 }
 
 #define RETURN_EXCEPTION_IF(cond, fcode, ecode, reply) \
+    do \
     { \
         if((cond)) \
         { \
             RTU_TLOG_TP(); \
-            return except((fcode), (ecode), (reply)); \
+            return except((fcode_t)(fcode), (ecode_t)(ecode), (reply)); \
         } \
-    }
+    } while(0)
 
 #define RETURN_EXCEPTION_IF_NOT(cond, fcode, ecode, reply) \
     RETURN_EXCEPTION_IF(!(cond), (fcode), (ecode), (reply))
@@ -88,7 +91,7 @@ uint8_t *read_n16(
 #endif
 
     /* fcode */
-    *reply++ = UINT8_C(FCODE_RD_HOLDING_REGISTERS);
+    *reply++ = (uint8_t)FCODE_RD_HOLDING_REGISTERS;
     /* byte count */
     *reply++ = (uint8_t)(num << 1);
 
@@ -218,8 +221,6 @@ uint8_t *read_n8(
     const uint8_t *curr,
     uint8_t *reply)
 {
-    (void)begin;
-
     const uint16_t rtu_mem_begin = rtu_memory->addr_begin;
     const uint16_t rtu_mem_end = rtu_memory->addr_end;
     const uint8_t  request_size = 1 /* fcode */ + 2 /* addr */ + 1 /* num */;
@@ -252,7 +253,9 @@ uint8_t *read_n8(
     RTU_TLOG_XPRINT8("N", num);
 #endif
 
-    reply = memcpy(reply, begin, request_size) + request_size;
+    reply = memcpy(reply, begin, request_size);
+    /* TODO: check for possible SDCC bug memcpy(...) + request_size  */
+    reply += request_size;
 
     uint16_t addr_begin = addr - rtu_mem_begin;
     const uint16_t  addr_end = addr_begin + num;
@@ -325,6 +328,7 @@ uint8_t *rtu_memory_pdu_cb(
     const uint8_t *curr,
     uint8_t *dst_begin, const uint8_t *const dst_end)
 {
+    (void)dst_end;
 #ifndef MODBUS_RTU_MEMORY_RD_HOLDING_REGISTERS_DISABLED
     if(FCODE_RD_HOLDING_REGISTERS == fcode)
     {

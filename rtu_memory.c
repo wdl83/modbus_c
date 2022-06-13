@@ -145,7 +145,7 @@ uint8_t *write_16(
 
     rtu_memory->bytes[addr - rtu_mem_begin] = data;
 
-    return memcpy(reply, begin, request_size) + request_size;
+    return (uint8_t *)memcpy(reply, begin, request_size) + request_size;
 }
 #endif /* MODBUS_RTU_MEMORY_WR_REGISTER_DISABLED */
 
@@ -210,7 +210,7 @@ uint8_t *write_n16(
         rtu_memory->bytes[addr_begin] = data;
     }
 
-    return memcpy(reply, begin, request_size) + request_size;
+    return (uint8_t *)memcpy(reply, begin, request_size) + request_size;
 }
 #endif /* MODBUS_RTU_MEMORY_WR_REGISTERS_DISABLED */
 
@@ -253,9 +253,7 @@ uint8_t *read_n8(
     RTU_TLOG_XPRINT8("N", num);
 #endif
 
-    reply = memcpy(reply, begin, request_size);
-    /* TODO: check for possible SDCC bug memcpy(...) + request_size  */
-    reply += request_size;
+    reply = (uint8_t *)memcpy(reply, begin, request_size) + request_size;
 
     uint16_t addr_begin = addr - rtu_mem_begin;
     const uint16_t  addr_end = addr_begin + num;
@@ -316,7 +314,7 @@ uint8_t *write_n8(
         curr += sizeof(rtu_memory->bytes[offset_begin]);
     }
 
-    return memcpy(reply, begin, request_size) + request_size;
+    return (uint8_t *)memcpy(reply, begin, request_size) + request_size;
 }
 
 uint8_t *rtu_memory_pdu_cb(

@@ -2,7 +2,7 @@
 
 #include <util/crc16.h>
 
-#include "crc.h"
+#include <modbus_c/crc.h>
 
 uint16_t modbus_rtu_calc_crc(const uint8_t *begin, const uint8_t *end)
 {

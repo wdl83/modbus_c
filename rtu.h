@@ -240,8 +240,18 @@ typedef union
     status.bits.updated = 1; \
     status.bits.error = 1;
 
+#ifdef MODBUS_RXBUF_CAPACITY
+#define RXBUF_CAPACITY MODBUS_RXBUF_CAPACITY
+#else
 #define RXBUF_CAPACITY ADU_CAPACITY
+#endif
+
+#ifdef MODBUS_TXBUF_CAPACITY
+#define TXBUF_CAPACITY MODBUS_TXBUF_CAPACITY
+#else
 #define TXBUF_CAPACITY ADU_CAPACITY
+#endif
+
 
 struct modbus_rtu_state
 {

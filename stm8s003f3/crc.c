@@ -5,8 +5,7 @@
 
 #include <modbus_c/crc.h>
 
-static
-uint16_t update(uint16_t crc, uint8_t data)
+uint16_t crc16_update(uint16_t crc, uint8_t data)
 {
     /* source: AVR GCC crc16 headers
      * Polynomial: x^16 + x^15 + x^2 + 1 (0xa001) */
@@ -28,6 +27,6 @@ uint16_t modbus_rtu_calc_crc(const uint8_t *begin, const uint8_t *end)
      * initial CRC16 value 0xFFFF */
     uint16_t crc16 = UINT16_C(0xFFFF);
 
-    while(begin != end) crc16 = update(crc16, *begin++);
+    while(begin != end) crc16 = crc16_update(crc16, *begin++);
     return crc16;
 }

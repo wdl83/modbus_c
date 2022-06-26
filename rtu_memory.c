@@ -59,8 +59,8 @@ uint8_t *read_n16(
 {
     (void)begin;
 
-    const uint16_t rtu_mem_begin = rtu_memory->addr_begin;
-    const uint16_t rtu_mem_end = rtu_memory->addr_end;
+    const uint16_t rtu_mem_begin = rtu_memory->header.addr_begin;
+    const uint16_t rtu_mem_end = rtu_memory->header.addr_end;
     const uint8_t  request_size = 1 /* fcode */ + 2 /* addr */ + 2 /* num */;
 
     RETURN_EXCEPTION_IF(
@@ -116,8 +116,8 @@ uint8_t *write_16(
     const uint8_t *curr,
     uint8_t *reply)
 {
-    const uint16_t rtu_mem_begin = rtu_memory->addr_begin;
-    const uint16_t rtu_mem_end = rtu_memory->addr_end;
+    const uint16_t rtu_mem_begin = rtu_memory->header.addr_begin;
+    const uint16_t rtu_mem_end = rtu_memory->header.addr_end;
     const uint8_t  request_size = 1 /* fcode */ + 2 /* addr */ + 2 /* data */;
 
     RETURN_EXCEPTION_IF(
@@ -157,8 +157,8 @@ uint8_t *write_n16(
     const uint8_t *curr,
     uint8_t *reply)
 {
-    const uint16_t rtu_mem_begin = rtu_memory->addr_begin;
-    const uint16_t rtu_mem_end = rtu_memory->addr_end;
+    const uint16_t rtu_mem_begin = rtu_memory->header.addr_begin;
+    const uint16_t rtu_mem_end = rtu_memory->header.addr_end;
     const uint8_t  request_size = 1 /* fcode */ + 2 /* addr */ + 2 /* num */;
 
     RETURN_EXCEPTION_IF(
@@ -221,8 +221,8 @@ uint8_t *read_n8(
     const uint8_t *curr,
     uint8_t *reply)
 {
-    const uint16_t rtu_mem_begin = rtu_memory->addr_begin;
-    const uint16_t rtu_mem_end = rtu_memory->addr_end;
+    const uint16_t rtu_mem_begin = rtu_memory->header.addr_begin;
+    const uint16_t rtu_mem_end = rtu_memory->header.addr_end;
     const uint8_t  request_size = 1 /* fcode */ + 2 /* addr */ + 1 /* num */;
 
     RETURN_EXCEPTION_IF(
@@ -273,8 +273,8 @@ uint8_t *write_n8(
     const uint8_t *curr,
     uint8_t *reply)
 {
-    const uint16_t rtu_mem_begin = rtu_memory->addr_begin;
-    const uint16_t rtu_mem_end = rtu_memory->addr_end;
+    const uint16_t rtu_mem_begin = rtu_memory->header.addr_begin;
+    const uint16_t rtu_mem_end = rtu_memory->header.addr_end;
     const uint16_t request_size =  1 /* fcode */ + 2 /* addr */ + 1 /* num */;
 
     RETURN_EXCEPTION_IF(

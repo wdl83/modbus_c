@@ -9,6 +9,11 @@ typedef struct
 {
     uint16_t addr_begin;
     uint16_t addr_end;
+} rtu_memory_header_t;
+
+typedef struct
+{
+    rtu_memory_header_t header;
     uint8_t bytes[];
 } rtu_memory_t;
 

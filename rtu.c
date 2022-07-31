@@ -32,14 +32,14 @@ typedef modbus_rtu_state_t state_t;
 static
 void reset_rxbuf(state_t *state)
 {
-    memset(state->rxbuf, 0, sizeof(state->rxbuf));
+    bzero(state->rxbuf, sizeof(state->rxbuf));
     state->rxbuf_curr = state->rxbuf;
 }
 
 static
 void reset_txbuf(state_t *state)
 {
-    memset(state->txbuf, 0, sizeof(state->txbuf));
+    bzero(state->txbuf, sizeof(state->txbuf));
     state->txbuf_curr = state->txbuf;
 }
 
@@ -148,7 +148,7 @@ void serial_recv_err_cb(state_t *state, uint8_t data)
 {
     (void)data;
     /* transmission error */
-    ++state->serial_recv_err_cntr;
+    ++state->stats.serial_recv_err_cntr;
     RTU_STATE_ERROR(state->status);
 }
 
@@ -166,7 +166,7 @@ bool adu_check(state_t *state, const uint8_t *begin, const uint8_t *end)
     {
         //TLOG_XPRINT16("rCRC", crc_received);
         //TLOG_XPRINT16("cCRC", crc_calculated);
-        ++state->crc_err_cntr;
+        ++state->stats.crc_err_cntr;
         return false;
     }
     return true;
@@ -230,14 +230,6 @@ void modbus_rtu_init(
     modbus_rtu_resume_cb_t resume_cb,
     uintptr_t user_data)
 {
-    modbus_rtu_status_t status = {0};
-
-    status.bits.updated = 1;
-    status.bits.prev = RTU_STATE_INIT;
-    status.bits.curr = RTU_STATE_INIT;
-
-    state->status = status;
-    state->addr = addr;
     state->timer_start_1t5 = timer_start_1t5;
     state->timer_start_3t5 = timer_start_3t5;
     state->timer_stop = timer_stop;
@@ -251,11 +243,20 @@ void modbus_rtu_init(
     state->suspend_cb = suspend_cb;
     state->resume_cb = resume_cb;
     state->user_data = user_data;
-    state->err_cntr = 0;
-    state->serial_recv_err_cntr = 0;
-    state->crc_err_cntr = 0;
+    state->stats.err_cntr = 0;
+    state->stats.serial_recv_err_cntr = 0;
+    state->stats.crc_err_cntr = 0;
     reset_rxbuf(state);
     reset_txbuf(state);
+
+    modbus_rtu_status_t status = {0};
+
+    status.bits.updated = 1;
+    status.bits.prev = RTU_STATE_INIT;
+    status.bits.curr = RTU_STATE_INIT;
+
+    state->status = status;
+    state->addr = addr;
 }
 
 void modbus_rtu_event(state_t *state)
@@ -268,15 +269,16 @@ void modbus_rtu_event(state_t *state)
     if(IS_ERR(state->status))
     {
 error:
-        ++state->err_cntr;
+        ++state->stats.err_cntr;
 
         TLOG_XPRINT16(
             "ERR",
-            ((uint16_t)state->err_cntr << 8) | state->serial_recv_err_cntr);
+            ((uint16_t)state->stats.err_cntr << 8)
+            | state->stats.serial_recv_err_cntr);
 
-        if(state->crc_err_cntr)
+        if(state->stats.crc_err_cntr)
         {
-            TLOG_XPRINT8("ERRCRC", state->crc_err_cntr);
+            TLOG_XPRINT8("ERRCRC", state->stats.crc_err_cntr);
         }
 
         RTU_STATE_UPDATE(state->status, RTU_STATE_INIT);

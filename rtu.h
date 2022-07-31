@@ -255,24 +255,16 @@ typedef union
 
 struct modbus_rtu_state
 {
-    modbus_rtu_status_t status;
-
-    modbus_rtu_addr_t addr;
-
     modbus_rtu_timer_start_t timer_start_1t5;
     modbus_rtu_timer_start_t timer_start_3t5;
     modbus_rtu_timer_stop_t timer_stop;
     modbus_rtu_timer_reset_t timer_reset;
     modbus_rtu_timer_cb_t timer_cb; // is set by modus state machine
-
     modbus_rtu_serial_recv_cb_t serial_recv_cb;
     modbus_rtu_serial_recv_err_cb_t serial_recv_err_cb;
-
     modbus_rtu_serial_send_t serial_send;
     modbus_rtu_serial_sent_cb_t serial_sent_cb;
-
     modbus_rtu_pdu_cb_t pdu_cb;
-
     modbus_rtu_suspend_cb_t suspend_cb;
     modbus_rtu_resume_cb_t resume_cb;
 
@@ -281,9 +273,16 @@ struct modbus_rtu_state
     uint8_t txbuf[TXBUF_CAPACITY];
     uint8_t *txbuf_curr;
     uintptr_t user_data;
-    uint8_t err_cntr;
-    uint8_t serial_recv_err_cntr;
-    uint8_t crc_err_cntr;
+
+    struct stats
+    {
+        uint8_t err_cntr;
+        uint8_t serial_recv_err_cntr;
+        uint8_t crc_err_cntr;
+    } stats;
+
+    modbus_rtu_status_t status;
+    modbus_rtu_addr_t addr;
 };
 
 void modbus_rtu_init(

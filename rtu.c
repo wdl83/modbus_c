@@ -32,14 +32,14 @@ typedef modbus_rtu_state_t state_t;
 static
 void reset_rxbuf(state_t *state)
 {
-    bzero(state->rxbuf, sizeof(state->rxbuf));
+    memset(state->rxbuf, 0, sizeof(state->rxbuf));
     state->rxbuf_curr = state->rxbuf;
 }
 
 static
 void reset_txbuf(state_t *state)
 {
-    bzero(state->txbuf, sizeof(state->txbuf));
+    memset(state->txbuf, 0, sizeof(state->txbuf));
     state->txbuf_curr = state->txbuf;
 }
 

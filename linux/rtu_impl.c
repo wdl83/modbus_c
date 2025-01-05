@@ -96,17 +96,6 @@ int calc_timeout_ms(speed_t rate, size_t size)
 }
 
 static
-int ceil_us_to_ms(int us)
-{
-    if (0 > us) return -1;
-
-    div_t r = div(us, 1000);
-
-    if(0 != r.rem) return r.quot + 1;
-    return r.quot;
-}
-
-static
 void timer_start_1t5(modbus_rtu_state_t *state)
 {
     CHECK(state);

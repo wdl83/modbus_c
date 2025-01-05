@@ -1,0 +1,27 @@
+AR=gcc-ar
+CC=gcc
+
+OBJ_DIR ?= ${PWD}/obj
+DST_DIR ?= ${PWD}/dst
+
+ARFLAGS = r
+
+CFLAGS = \
+	-O2 \
+	-Wall \
+	-Wextra \
+	-Wno-parentheses \
+	-Wno-unused-function \
+	-Wno-unused-parameter \
+	-Wno-unused-variable \
+	-Wshadow \
+	-Wunreachable-code \
+	-g \
+	-std=gnu11
+
+ifdef DEBUG
+	CFLAGS +=  \
+		-fsanitize=address
+	LDFLAGS += \
+		-fsanitize=address
+endif

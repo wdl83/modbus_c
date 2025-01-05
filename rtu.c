@@ -3,10 +3,11 @@
 #include <stdint.h>
 #include <string.h>
 
-#include <drv/tlog.h>
 
 #include "crc.h"
+#include "linux/rtu_log_impl.h"
 #include "rtu.h"
+#include "rtu_log.h"
 
 typedef modbus_rtu_addr_t addr_t;
 typedef modbus_rtu_crc_t crc_t;
@@ -60,7 +61,7 @@ void timer_silent_interval_cb(state_t *state)
     }
     else
     {
-        TLOG_XPRINT8("SIE", state->status.value);
+        RTU_LOG_ERROR("SIE", state->status);
         RTU_STATE_ERROR(state->status);
     }
 }
@@ -81,7 +82,7 @@ void timer_inter_frame_timeout_cb(state_t *state)
     }
     else
     {
-        TLOG_XPRINT8("IFE", state->status.value);
+        RTU_LOG_ERROR("IFE", state->status);
         RTU_STATE_ERROR(state->status);
     }
 }
@@ -96,7 +97,7 @@ void rxbuf_append(state_t *state, uint8_t data)
     }
     else
     {
-        TLOG_XPRINT8("RAE", state->status.value);
+        RTU_LOG_ERROR("RAE", state->status);
         RTU_STATE_ERROR(state->status);
     }
 }
@@ -122,7 +123,7 @@ void serial_recv_cb(state_t *state, uint8_t data)
     }
     else
     {
-        TLOG_XPRINT8("SRE", state->status.value);
+        RTU_LOG_ERROR("SRE", state->status);
         RTU_STATE_ERROR(state->status);
     }
 }
@@ -132,13 +133,13 @@ void serial_sent_cb(state_t *state)
 {
     if(IS_CURR_BUSY(state->status))
     {
-        //TLOG_XPRINT16("SLEN", (uint16_t)(state->txbuf_curr - state->txbuf));
+        RTU_LOG_DBG16("SLEN", (uint16_t)(state->txbuf_curr - state->txbuf));
         state->txbuf_curr = state->txbuf;
         RTU_STATE_UPDATE(state->status, RTU_STATE_INIT);
     }
     else
     {
-        TLOG_XPRINT8("SSE", state->status.value);
+        RTU_LOG_ERROR("SSE", state->status);
         RTU_STATE_ERROR(state->status);
     }
 }
@@ -164,8 +165,8 @@ bool adu_check(state_t *state, const uint8_t *begin, const uint8_t *end)
 
     if(crc_received != crc_calculated)
     {
-        //TLOG_XPRINT16("rCRC", crc_received);
-        //TLOG_XPRINT16("cCRC", crc_calculated);
+        RTU_LOG_DBG16("rCRC", crc_received);
+        RTU_LOG_DBG16("cCRC", crc_calculated);
         ++state->stats.crc_err_cntr;
         return false;
     }
@@ -212,7 +213,7 @@ void adu_process(state_t *state)
     }
     else
     {
-        TLOG_XPRINT8("APE", state->status.value);
+        RTU_LOG_ERROR("APE", state->status);
         RTU_STATE_ERROR(state->status);
     }
 }
@@ -238,7 +239,6 @@ void modbus_rtu_init(
     state->serial_recv_cb = serial_recv_cb;
     state->serial_recv_err_cb = serial_recv_err_cb;
     state->serial_send = serial_send;
-    state->serial_sent_cb = serial_sent_cb;
     state->pdu_cb = pdu_cb;
     state->suspend_cb = suspend_cb;
     state->resume_cb = resume_cb;
@@ -264,6 +264,8 @@ void modbus_rtu_event(state_t *state)
     if(!state->status.bits.updated) return;
     else state->status.bits.updated = 0;
 
+    RTU_LOG_EVENT("EVT", state->status);
+
     /* interrupts should be disabled until this funtion return */
 
     if(IS_ERR(state->status))
@@ -271,14 +273,14 @@ void modbus_rtu_event(state_t *state)
 error:
         ++state->stats.err_cntr;
 
-        TLOG_XPRINT16(
+        RTU_LOG_DBG16(
             "ERR",
             ((uint16_t)state->stats.err_cntr << 8)
             | state->stats.serial_recv_err_cntr);
 
         if(state->stats.crc_err_cntr)
         {
-            TLOG_XPRINT8("ERRCRC", state->stats.crc_err_cntr);
+            RTU_LOG_DBG8("ERRCRC", state->stats.crc_err_cntr);
         }
 
         RTU_STATE_UPDATE(state->status, RTU_STATE_INIT);
@@ -307,7 +309,7 @@ restart:
              * this case should never happen (BUSY state) */
             if(state->txbuf_curr != state->txbuf)
             {
-                TLOG_TP();
+                RTU_LOG_TP();
                 goto error;
             }
 
@@ -317,7 +319,7 @@ restart:
         }
         else
         {
-            TLOG_TP();
+            RTU_LOG_TP();
             goto error;
         }
     }
@@ -327,7 +329,7 @@ restart:
 
         if(!IS_PREV_IDLE(state->status))
         {
-            TLOG_TP();
+            RTU_LOG_TP();
             goto error;
         }
     }
@@ -340,7 +342,7 @@ restart:
     {
         if(!IS_PREV_RECV(state->status))
         {
-            TLOG_TP();
+            RTU_LOG_TP();
             goto error;
         }
     }
@@ -350,7 +352,7 @@ restart:
     }
     else
     {
-        TLOG_TP();
+        RTU_LOG_TP();
         goto error;
     }
 }

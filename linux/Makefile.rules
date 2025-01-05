@@ -1,0 +1,27 @@
+.PRECIOUS: $(OBJ_DIR)/%.o
+
+OBJS = $(CSRCS:.c=.o) 
+OBJS += $(CXXSRCS:.cpp=.o) 
+DST_OBJS = $(addprefix $(OBJ_DIR)/, $(OBJS))
+DST_TARGET = $(OBJ_DIR)/$(TARGET)
+
+all:: $(DST_TARGET)
+
+$(DST_TARGET): $(TARGET_EXTRA_DEPS) $(DST_OBJS)
+	$(CC) -o $@ $(DST_OBJS) $(LDFLAGS) $(LD_EXTRA_FLAGS)
+
+$(OBJ_DIR)/%.o: %.c
+	mkdir -p "$(OBJ_DIR)/`dirname $<`"
+	$(CC) $(CFLAGS) -DBASE_FILE_NAME=\"$(shell basename $<)\" -o $@ -c $< 
+
+$(OBJ_DIR)/%.o: %.cpp
+	mkdir -p "$(OBJ_DIR)/`dirname $<`"
+	$(CC) $(CXXFLAGS) -DBASE_FILE_NAME=\"$(shell basename $<)\" -o $@ -c $<
+
+clean:
+	rm $(OBJ_DIR) -rf
+	rm $(DST_OBJS) $(DST_TARGET) -f
+
+install: $(DST_TARGET)
+	mkdir -p $(DST_DIR)/bin
+	cp $< $(DST_DIR)/bin

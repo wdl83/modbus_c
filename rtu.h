@@ -5,16 +5,24 @@
 
 /*
  * MODBUS over serial line specification and implementation guide V1.02
+ * ...
+ * From: 2.5.1 "RTU Transmission Mode"
+ *
+ * When devices communicate on a MODBUS serial line using the RTU
+ * (Remote Terminal Unit) mode, each 8–bit byte in a message
+ * contains two 4–bit hexadecimal characters.
+ * ...
+ * From: 2.5.1.1 "MODBUS Message RTU Framing"
  *
  * In RTU mode, message frames are separated by a silent interval of at least
  * 3.5 character times. In the following sections, this time interval
  * is called t3,5.
- * [...]
+ * ...
  * The entire message frame must be transmitted as a continuous stream
  * of characters. If a silent interval of more than 1.5 character times occurs
  * between two characters, the message frame is declared incomplete and
  * should be discarded by the receiver.
- * [...]
+ * ...
  * Remark :
  * The implementation of RTU reception driver may imply the management
  * of a lot of interruptions due to the t 1.5 and t 3.5 timers. With
@@ -26,31 +34,35 @@
  * and a value of 1.750ms for inter-frame delay (t 3.5 ).
  * */
 
-/*
- * Silent Interval ...[FRAME1]...[FRAME2]<-... min 3.5t ...->[FRAME3]...
+
+/* Specification requires (see 2.5.1 "RTU Transmission Mode"):
  *
- * Inter Frame Timeout [N0, N1, ... Ni, <-... max 1.5t ... -> Nj, ... Nn]
+ * Format:
+ *     - 11 bits for every data byte (a or b):
+ *         a) [1 x start bit | 8x data bits | 1x parity   | 1x stop bit]
+ *         b) [1 x start bit | 8x data bits | 1x stop bit | 1x stop bit]
+ *     - even parity (odd/none optional)
+ *     - 1.5t = 750us for rate >= 19200bps
+ *     - 3.5t = 1750us for rates >= 19200bps
  *
- *  11bits / frame (4-bits per character)
- * even parity:
- * [start_bit | 8_data_bits | parity_bit | stop_bit]
- * OR (if parity disabled):
- * [start_bit | 8_data_bits | stop_bit   | stop_bit]
+ * 9600bps:
+ *     9600 / 11 ~= 872 bytes per second = 1744 chars per second
+ *     1t[us] = 10^6us / 1744 ~= 573us
+ *     1.5t[us] ~= 859us
+ *     3.5t[us] ~= 2005us
  *
- * Example:
- * 9600bps === (872 * 2)c / 10^6us == 1744c / 10^6us
+ * 19200bps:
+ *     19200 / 11 ~= 1745 bytes per second = 3490 chars per second
+ *     1t[us] = 10^6[us] / 3490 ~= 286us
+ *     1.5t[us] ~= 429us
+ *     3.5t[us] ~= 1001us
  *
- * 1.5t = 1.5c * (10^6us / 1744c)
- *      = 15c * (10^5us / 1744c)
- *      = 15c * 57us/c
- *      = 855us
+ * Silent Interval:
+ *     ... [FRAME1] ... [FRAME2] <- min 3.5t -> [FRAME3] ...
  *
- * 19200bps === (1745 * 2)c / 10^6us = 3490c / 10^6us
- * 1.5t = 1.5c * (10^6us / 3490c)
- *      = 15c * (10^5us / 3490c)
- *      = 15c * 28us/c
- *      = 420us
- */
+ * Inter Frame Timeout (within single frame):
+ *     ... [N0, N1, ... Ni, <- max 1.5t -> Nj, ... Nn] ...
+ * */
 
 
 /* characters per second */
@@ -263,7 +275,6 @@ struct modbus_rtu_state
     modbus_rtu_serial_recv_cb_t serial_recv_cb;
     modbus_rtu_serial_recv_err_cb_t serial_recv_err_cb;
     modbus_rtu_serial_send_t serial_send;
-    modbus_rtu_serial_sent_cb_t serial_sent_cb;
     modbus_rtu_pdu_cb_t pdu_cb;
     modbus_rtu_suspend_cb_t suspend_cb;
     modbus_rtu_resume_cb_t resume_cb;
@@ -288,8 +299,8 @@ struct modbus_rtu_state
 void modbus_rtu_init(
     modbus_rtu_state_t *,
     modbus_rtu_addr_t,
-    modbus_rtu_timer_start_t /* 1,5t*/,
-    modbus_rtu_timer_start_t /* 3,5t */,
+    modbus_rtu_timer_start_t /* 1.5t */,
+    modbus_rtu_timer_start_t /* 3.5t */,
     modbus_rtu_timer_stop_t,
     modbus_rtu_timer_reset_t,
     modbus_rtu_serial_send_t,

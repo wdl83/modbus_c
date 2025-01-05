@@ -1,10 +1,11 @@
 #include <stddef.h>
 #include <string.h>
 
+#include "rtu_log.h"
 #include "rtu_memory.h"
-#include "rtu_tlog.h"
 
-#include <drv/util.h>
+// enabled additional logging via RTU_LOG
+// #define DEBUG_RTU_MEMORY
 
 typedef modbus_rtu_addr_t addr_t;
 typedef modbus_rtu_crc_t crc_t;
@@ -37,13 +38,10 @@ uint8_t *except(fcode_t fcode, ecode_t ecode, uint8_t *reply)
 }
 
 #define RETURN_EXCEPTION_IF(cond, fcode, ecode, reply) \
-    do \
-    { \
-        if((cond)) \
-        { \
-            RTU_TLOG_TP(); \
-            return except((fcode_t)(fcode), (ecode_t)(ecode), (reply)); \
-        } \
+    do { \
+        if(!(cond)) break; \
+        RTU_LOG_TP(); \
+        return except((fcode_t)(fcode), (ecode_t)(ecode), (reply)); \
     } while(0)
 
 #define RETURN_EXCEPTION_IF_NOT(cond, fcode, ecode, reply) \
@@ -86,8 +84,8 @@ uint8_t *read_n16(
         FCODE_RD_HOLDING_REGISTERS, ECODE_ILLEGAL_DATA_ADDRESS, reply);
 
 #ifdef DEBUG_RTU_MEMORY
-    RTU_TLOG_XPRINT16("R", addr);
-    RTU_TLOG_XPRINT8("N", (uint8_t)num);
+    RTU_LOG_DBG16("R", addr);
+    RTU_LOG_DBG8("N", (uint8_t)num);
 #endif
 
     /* fcode */
@@ -139,8 +137,8 @@ uint8_t *write_16(
         FCODE_WR_REGISTER, ECODE_ILLEGAL_DATA_VALUE, reply);
 
 #ifdef DEBUG_RTU_MEMORY
-    RTU_TLOG_XPRINT16("W", addr);
-    RTU_TLOG_XPRINT16("D", data);
+    RTU_LOG_DBG16("W", addr);
+    RTU_LOG_DBG16("D", data);
 #endif
 
     rtu_memory->bytes[addr - rtu_mem_begin] = data;
@@ -191,8 +189,8 @@ uint8_t *write_n16(
         FCODE_WR_REGISTERS, ECODE_FORMAT_ERROR, reply);
 
 #ifdef DEBUG_RTU_MEMORY
-    RTU_TLOG_XPRINT16("nW", addr);
-    RTU_TLOG_XPRINT8("N", (uint8_t)num);
+    RTU_LOG_DBG16("nW", addr);
+    RTU_LOG_DBG8("N", (uint8_t)num);
 #endif
 
     uint16_t addr_begin = addr - rtu_mem_begin;
@@ -249,8 +247,8 @@ uint8_t *read_n8(
         FCODE_RD_BYTES, ECODE_ILLEGAL_DATA_ADDRESS, reply);
 
 #ifdef DEBUG_RTU_MEMORY
-    RTU_TLOG_XPRINT16("nR8", addr);
-    RTU_TLOG_XPRINT8("N", num);
+    RTU_LOG_DBG16("nR8", addr);
+    RTU_LOG_DBG8("N", num);
 #endif
 
     reply = (uint8_t *)memcpy(reply, begin, request_size) + request_size;
@@ -301,8 +299,8 @@ uint8_t *write_n8(
         FCODE_WR_BYTES, ECODE_ILLEGAL_DATA_VALUE, reply);
 
 #ifdef DEBUG_RTU_MEMORY
-    RTU_TLOG_XPRINT16("nW8", addr);
-    RTU_TLOG_XPRINT8("N", (uint8_t)num);
+    RTU_LOG_DBG16("nW8", addr);
+    RTU_LOG_DBG8("N", (uint8_t)num);
 #endif
 
     uint16_t offset_begin = addr - rtu_mem_begin;

@@ -54,6 +54,7 @@ void tty_init(tty_dev_t *, size_t debug_size);
 void tty_deinit(tty_dev_t *);
 // if NULL == flags, default flags will be used: O_RDWR | O_NONBLOCK
 void tty_open(tty_dev_t *, const char *path, int *user_flags);
+void tty_adopt(tty_dev_t *, int fd);
 void tty_close(tty_dev_t *);
 void tty_configure(tty_dev_t *, speed_t, parity_t, data_bits_t, stop_bits_t);
 char *tty_read(tty_dev_t *, char *begin, const char *end, int timeout, int event_fd);

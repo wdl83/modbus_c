@@ -149,6 +149,15 @@ void tty_open(tty_dev_t *dev, const char *path, int *user_flags)
     logT("%p %s (%d)", dev, path, dev->fd);
 }
 
+void tty_adopt(tty_dev_t *dev, int fd)
+{
+    CHECK(dev);
+    CHECK(-1 == dev->fd);
+    CHECK(-1 != fd);
+    dev->fd = fd;
+    logT("%p (%d)", dev, dev->fd);
+}
+
 void tty_close(tty_dev_t *dev)
 {
     if(!dev) return;
@@ -159,12 +168,9 @@ void tty_close(tty_dev_t *dev)
         dev->path = NULL;
     }
 
-    if(-1 != dev->fd)
-    {
-        CHECK_ERRNO(0 == close(dev->fd));
-        dev->fd = -1;
-    }
-    logT("%p", dev);
+    if(-1 != dev->fd) CHECK_ERRNO(0 == close(dev->fd));
+    logT("%p %d", dev, dev->fd);
+    dev->fd = -1;
 }
 
 void tty_configure(

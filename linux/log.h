@@ -30,7 +30,7 @@ int current_log_level(void);
     do { \
         fprintf( \
             dst, "[%d:%d:" prefix "] %s:%d %s " fmt "\n", \
-            getpid(), get_thread_id(), \
+            getpid(), gnu_thread_id(), \
             BASE_FILE_NAME, __LINE__, __FUNCTION__, ##__VA_ARGS__); \
         fflush(dst); \
     } while(0)

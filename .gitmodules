@@ -1,0 +1,3 @@
+[submodule "utest"]
+	path = utest
+	url = https://github.com/wdl83/utest.h

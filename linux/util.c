@@ -2,7 +2,26 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "check.h"
 #include "util.h"
+
+void set_signal_handler(int sig_no, signal_handler_t handler, struct sigaction *backup)
+{
+    struct sigaction action;
+
+    memset(&action, 0, sizeof(action));
+    sigemptyset(&action.sa_mask);
+    action.sa_handler = handler;
+    action.sa_flags = 0;
+    CHECK_ERRNO(0 == sigaction(sig_no, &action, backup));
+}
+
+void restore_signal_handler(int sig_no, struct sigaction *action)
+{
+    if(!action) return;
+    CHECK_ERRNO(0 == sigaction(sig_no, action, NULL));
+}
+
 
 size_t hexdump(
     char *dst, const size_t capacity,
@@ -27,6 +46,7 @@ size_t hexdump(
     }
     return (src_begin - (const uint8_t *)src) << 1;
 }
+
 void dump_to_file(const char *name, const void *data, size_t size)
 {
     assert(name);

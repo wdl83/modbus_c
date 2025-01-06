@@ -1,4 +1,5 @@
 #include <ctype.h>
+#include <stdatomic.h>
 #include <stddef.h>
 #include <string.h>
 
@@ -218,6 +219,45 @@ UTEST(tty_dev, async_echo)
     CHECK_ERRNO(0 == pthread_join(receiver, NULL));
 
     deinit(&master, &slave);
+}
+
+
+atomic_int usr1_cntr = 0;
+
+static
+void handle_USR1(int sig_no)
+{
+    if(SIGUSR1 == sig_no) ++usr1_cntr;
+}
+
+UTEST(dev_tty_t, read_interrupted)
+{
+    struct sigaction action_backup;
+
+    set_signal_handler(SIGUSR1, handle_USR1, &action_backup);
+
+    tty_dev_t master, slave;
+
+    init(&master, &slave);
+    config(&master, &slave, B2400, PARITY_none);
+
+    async_data_t data =
+    {
+        .dev = &slave,
+        .timeout = 1000
+    };
+    pthread_t receiver;
+    buf_t *recv_buf = NULL;
+
+    CHECK_ERRNO(0 == pthread_create(&receiver, NULL, async_read, &data));
+    usleep(10000);
+    pthread_kill(receiver, SIGUSR1);
+    CHECK_ERRNO(0 == pthread_join(receiver, (void **)&recv_buf));
+    buf_free(&recv_buf);
+    deinit(&master, &slave);
+    EXPECT_TRUE(1 == usr1_cntr);
+
+    restore_signal_handler(SIGUSR1, &action_backup);
 }
 
 UTEST_MAIN();

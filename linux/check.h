@@ -21,7 +21,7 @@
 
 #define ABORT(hint) \
     do { \
-        logA("aborting: %s", hint); \
+        logA("aborting: %s", STRINGIFY(hint)); \
         abort(); \
     } while(0)
 

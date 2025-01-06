@@ -14,6 +14,7 @@ CFLAGS += \
 LDFLAGS += -lrt -lpthread
 
 CSRCS = \
+	linux/buf.c \
 	linux/gnu.c \
 	linux/log.c \
 	linux/tests/tty_dev_tests.c \

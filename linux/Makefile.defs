@@ -21,6 +21,7 @@ CFLAGS = \
 
 ifdef DEBUG
 	CFLAGS +=  \
+		-DNDEBUG \
 		-fsanitize=address
 	LDFLAGS += \
 		-fsanitize=address

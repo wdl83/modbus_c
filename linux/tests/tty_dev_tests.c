@@ -1,40 +1,24 @@
+#include <ctype.h>
+#include <stddef.h>
+#include <string.h>
+
 #include <pthread.h>
 #include <termios.h>
 
 #include "utest.h"
 
+#include "buf.h"
 #include "log.h"
 #include "tty.h"
 #include "tty_pair.h"
 #include "util.h"
 
-typedef struct buf
-{
-    char *begin;
-    char *curr;
-    char *end;
-} buf_t;
 
-static
-buf_t *buf_alloc(size_t size)
-{
-    void *p = malloc(sizeof(buf_t) + size);
-    CHECK_ERRNO(p);
-    memset(p, 0, sizeof(buf_t) + size);
-    buf_t *buf = (buf_t *)p;
-    buf->begin = p + sizeof(buf_t);
-    buf->curr = buf->begin;
-    buf->end = buf->begin + size;
-    return buf;
-}
-
-static
-void buf_free(buf_t **buf)
-{
-    if(!buf || !*buf) return;
-    free(*buf);
-    *buf = NULL;
-}
+#ifdef NDEBUG
+#define DEBUG_SIZE 0
+#else
+#define DEBUG_SIZE 1024
+#endif
 
 static
 void init(tty_dev_t *master, tty_dev_t *slave)
@@ -43,8 +27,8 @@ void init(tty_dev_t *master, tty_dev_t *slave)
 
     tty_pair_init(&pair);
     tty_pair_create(&pair, TTY_DEFAULT_MULTIPLEXOR, NULL);
-    tty_init(master, 0);
-    tty_init(slave, 0);
+    tty_init(master, DEBUG_SIZE);
+    tty_init(slave, DEBUG_SIZE);
     tty_adopt(master, pair.master_fd);
     tty_open(slave, pair.slave_path, NULL);
     tty_pair_deinit(&pair);
@@ -53,17 +37,11 @@ void init(tty_dev_t *master, tty_dev_t *slave)
 static
 void config(tty_dev_t *master, tty_dev_t *slave, speed_t rate, parity_t parity)
 {
-    tty_configure(
-        master,
-        rate,
-        parity,
-        DATA_BITS_8,
-        PARITY_none == parity ? STOP_BITS_2 : STOP_BITS_1);
-    tty_configure(
-        slave,
-        rate,
-        parity,
-        DATA_BITS_8, PARITY_none == parity ? STOP_BITS_2 : STOP_BITS_1);
+    tty_dev_t *devs[] = {master, slave};
+    const stop_bits_t stop_bits = PARITY_none == parity ? STOP_BITS_2 : STOP_BITS_1;
+
+    for(tty_dev_t **pdev = devs; pdev != devs + length_of(devs); ++pdev)
+        tty_configure(*pdev, rate, parity, DATA_BITS_8, stop_bits);
 }
 
 static
@@ -108,23 +86,20 @@ UTEST(tty_dev, write_then_read)
     deinit(&master, &slave);
 }
 
-typedef struct test_data
+typedef struct async_data
 {
     tty_dev_t *dev;
-    const char *begin;
-    const char *end;
     int timeout;
 
-} test_data_t;
+} async_data_t;
 
 static
 void *async_read(void *user_data)
 {
     CHECK(user_data);
 
-    test_data_t *data = (test_data_t *)user_data;
+    async_data_t *data = (async_data_t *)user_data;
     tty_dev_t *dev = data->dev;
-    const size_t size = data->end - data->begin;
     const size_t buf_size = 255;
     buf_t *buf = buf_alloc(buf_size);
     buf->curr = tty_read(dev, buf->begin, buf->end, data->timeout, -1);
@@ -141,11 +116,9 @@ UTEST(tty_dev, async_read_and_write)
     const char msg[] = "hello on other side!";
     const size_t msg_size = length_of(msg);
     const int timeout = 100;
-    test_data_t data =
+    async_data_t data =
     {
         .dev = &slave,
-        .begin = msg,
-        .end = msg + msg_size,
         .timeout = timeout
     };
     pthread_t receiver;
@@ -162,6 +135,88 @@ UTEST(tty_dev, async_read_and_write)
     EXPECT_TRUE(0 == memcmp(recv_buf->begin, msg, msg_size));
 
     buf_free(&recv_buf);
+    deinit(&master, &slave);
+}
+
+static
+void *async_echo(void *user_data)
+{
+    CHECK(user_data);
+
+    const char stop[] = "STOP";
+    async_data_t *data = (async_data_t *)user_data;
+    tty_dev_t *dev = data->dev;
+    char buf[255];
+
+    memset(buf, 0, length_of(buf));
+
+    for(;;)
+    {
+        const int rx_timeout = rand() % data->timeout;
+        const int tx_timeout = rand() % data->timeout;
+        const char *next = buf;
+
+        for(char *curr = buf; curr == buf; next = curr)
+            curr = tty_read(dev, curr, buf + length_of(buf), rx_timeout, -1);
+
+
+        for(const char *curr = buf; curr != next;)
+            curr = tty_write(dev, curr, next, tx_timeout, -1);
+
+        if(0 == memcmp(stop, buf, length_of(stop))) return NULL;
+    }
+}
+
+UTEST(tty_dev, async_echo)
+{
+    tty_dev_t master, slave;
+
+    init(&master, &slave);
+    config(&master, &slave, B57600, PARITY_none);
+
+    const char message[] = "*** hello on other side! ?\t? \n12 _ $ test \n message *** STOP";
+    const char *message_end = message + length_of(message);
+    const int timeout = 10;
+    const int tx_timeout = rand() % timeout;
+    const int rx_timeout = rand() % timeout;
+    async_data_t data =
+    {
+        .dev = &slave,
+        .timeout = 20
+    };
+
+    pthread_t receiver;
+    CHECK_ERRNO(0 == pthread_create(&receiver, NULL, async_echo, &data));
+
+    // send 1 word at a time
+    for(const char *w_begin = message, *w_end = message; w_begin != message_end; w_begin = w_end)
+    {
+        while(w_begin != message_end && isspace(*w_begin)) ++w_begin;
+        w_end = w_begin;
+        while(w_end != message_end && !isspace(*w_end)) ++w_end;
+
+        const size_t len = w_end - w_begin;
+
+        if(!len) break;
+
+        for(const char *curr = w_begin; curr != w_end;)
+            curr = tty_write(&master, curr, w_end, timeout, -1);
+
+        // receive echo and check if it matches
+        char rx_buf[255] = {};
+        const char *next = rx_buf;
+
+        ASSERT_TRUE(length_of(rx_buf) >= len);
+
+        for(char *curr = rx_buf; len != (size_t)(curr - rx_buf); next = curr)
+            curr = tty_read(&master, curr, rx_buf + length_of(rx_buf), timeout, -1);
+
+        EXPECT_TRUE((size_t)(next - rx_buf) == len);
+        EXPECT_TRUE(0 == memcmp(w_begin, rx_buf, len));
+    }
+
+    CHECK_ERRNO(0 == pthread_join(receiver, NULL));
+
     deinit(&master, &slave);
 }
 

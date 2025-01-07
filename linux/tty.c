@@ -139,7 +139,7 @@ void tty_deinit(tty_dev_t *dev)
 
 void tty_open(tty_dev_t *dev, const char *path, int *user_flags)
 {
-    const int flags = user_flags ? *user_flags : O_RDWR | O_NONBLOCK;
+    const int flags = user_flags ? *user_flags : O_CLOEXEC | O_NONBLOCK | O_RDWR;
     CHECK(dev);
     CHECK(-1 == dev->fd);
     CHECK(path);
@@ -194,7 +194,7 @@ char *tty_read(
     tty_dev_t *dev,
     char *const begin, const char *const end,
     const int timeout,
-    const int event_fd)
+    struct pollfd *aux)
 {
     CHECK(dev);
     CHECK(begin);
@@ -203,8 +203,8 @@ char *tty_read(
 
     struct pollfd events[] =
     {
-        {dev->fd, (short)POLLIN /* events */, (short)0 /* revents */},
-        {event_fd, (short)POLLIN /* events */, (short)0 /* revents */}
+        {dev->fd, (short)POLLIN, (short)0},
+        {aux ? aux->fd : -1, aux ? aux->events : (short)0, (short)0}
     };
 
     const int64_t start_ts = timestamp_us();
@@ -231,7 +231,11 @@ char *tty_read(
             if(0 > timeout) break;
         }
 
-        if(events[1].revents & POLLIN) break;
+        if(events[1].events & events[1].revents)
+        {
+            if(aux) aux->revents = events[1].revents;
+            break;
+        }
     }
 
     debug(dev, __FUNCTION__, (int64_t)timeout * 1000, timestamp_us() - start_ts, begin, end, curr);
@@ -275,7 +279,7 @@ const char *tty_write(
     tty_dev_t *dev,
     const char *begin, const char *const end,
     const int timeout,
-    const int event_fd)
+    struct pollfd *aux)
 {
     CHECK(dev);
     CHECK(begin);
@@ -284,8 +288,8 @@ const char *tty_write(
 
     struct pollfd events[] =
     {
-        {dev->fd, (short)POLLOUT /* events */, (short)0 /* revents */},
-        {event_fd, (short)POLLIN /* events */, (short)0 /* revents */}
+        {dev->fd, (short)POLLOUT, (short)0},
+        {aux ? aux->fd : -1, aux ? aux->events : (short)0, (short)0}
     };
 
     const int64_t start_ts = timestamp_us();
@@ -311,7 +315,11 @@ const char *tty_write(
             curr += r;
         }
 
-        if(events[1].revents & POLLIN) break;
+        if(events[1].events & events[1].revents)
+        {
+            if(aux) aux->revents = events[1].revents;
+            break;
+        }
     }
 
     debug(dev, __FUNCTION__, (int64_t)timeout * 1000, timestamp_us() - start_ts, begin, end, curr);

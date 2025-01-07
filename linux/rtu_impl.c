@@ -156,7 +156,7 @@ void send(modbus_rtu_state_t *state, modbus_rtu_serial_sent_cb_t sent_cb)
     const char *const end = (const char *)state->txbuf_curr;
     const ssize_t size = (size_t)(end - begin);
     const int timeout = calc_timeout_ms(impl->rate, size);
-    const char *const curr = tty_write( impl->dev, begin, end, timeout, -1);
+    const char *const curr = tty_write( impl->dev, begin, end, timeout, NULL);
 
     log_tty_debug(impl->dev);
     CHECK(end == curr);
@@ -198,7 +198,7 @@ void modbus_rtu_run(
     modbus_rtu_pdu_cb_t pdu_cb,
     int timeout_1t5, int timeout_3t5,
     uintptr_t user_data,
-    int peer_fd)
+    struct pollfd *user_event)
 {
     rtu_impl_t impl =
     {
@@ -240,7 +240,7 @@ void modbus_rtu_run(
 
         const char *const end =
             -1 == impl.timer.timeout_us
-            ? tty_read(dev, buf, buf + sizeof(buf), -1, peer_fd)
+            ? tty_read(dev, buf, buf + sizeof(buf), -1, user_event)
             : tty_read_ll(dev, buf, buf + sizeof(buf), impl.timer.timeout_us);
 
         log_tty_debug(dev);

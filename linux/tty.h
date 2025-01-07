@@ -5,6 +5,8 @@
 
 #include <termios.h>
 
+struct pollfd;
+
 /* speed_t
  *
  * B1200,
@@ -57,10 +59,18 @@ void tty_open(tty_dev_t *, const char *path, int *user_flags);
 void tty_adopt(tty_dev_t *, int fd);
 void tty_close(tty_dev_t *);
 void tty_configure(tty_dev_t *, speed_t, parity_t, data_bits_t, stop_bits_t);
-char *tty_read(tty_dev_t *, char *begin, const char *end, int timeout, int event_fd);
+char *tty_read(
+    tty_dev_t *,
+    char *begin, const char *end,
+    int timeout,
+    struct pollfd *aux);
 // low latency
 char *tty_read_ll(tty_dev_t *, char *begin, const char *end, int delay_us);
-const char *tty_write(tty_dev_t *, const char *begin, const char *end, int timeout, int event_fd);
+const char *tty_write(
+    tty_dev_t *,
+    const char *begin, const char *end,
+    int timeout,
+    struct pollfd *aux);
 /* discards data, received but not read (rx), written but not transmitted (tx) */
 void tty_flush_rx(int fd);
 void tty_flush_tx(int fd);

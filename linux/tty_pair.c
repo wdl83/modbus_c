@@ -30,7 +30,7 @@ void tty_pair_create(tty_pair_t *pair, const char *multiplexor, int *user_flags)
     CHECK(!pair->slave_path);
     CHECK(multiplexor);
 
-    const int flags = user_flags ? *user_flags : O_RDWR | O_NONBLOCK;
+    const int flags = user_flags ? *user_flags : O_CLOEXEC | O_NONBLOCK | O_RDWR;
 
     pair->master_fd = open(multiplexor, flags);
     CHECK_ERRNO(0 == gnu_grantpt(pair->master_fd));

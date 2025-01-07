@@ -15,4 +15,4 @@ void modbus_rtu_run(
     modbus_rtu_pdu_cb_t pdu_cb,
     int timeout_1t5, int timeout_3t5,
     uintptr_t user_data,
-    int peer_fd);
+    struct pollfd *user_event);

@@ -170,7 +170,7 @@ int main(int argc, const char *argv[])
         rtu_pdu_cb,
         timeout_1t5, timeout_3t5,
         (uintptr_t)&memory_fields,
-        -1);
+        NULL);
 
     tty_close(&dev);
     tty_deinit(&dev);

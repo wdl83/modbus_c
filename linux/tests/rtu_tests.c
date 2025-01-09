@@ -145,7 +145,7 @@ UTEST_I_TEARDOWN(TestFixture)
 
     const char stop[] = "STOP";
 
-    write(tf->channel.writer, stop, sizeof(stop));
+    CHECK_ERRNO(-1 != write(tf->channel.writer, stop, sizeof(stop)));
     CHECK_ERRNO(0 == pthread_join(tf->runner, NULL));
     deinit(&tf->master, &tf->slave);
 }

@@ -4,6 +4,7 @@
 #include "crc.h"
 #include "master.h"
 #include "rtu.h"
+#include "log.h"
 
 typedef modbus_rtu_addr_t addr_t;
 typedef modbus_rtu_fcode_t fcode_t;
@@ -21,6 +22,12 @@ static
 uint8_t high_byte(uint16_t word)
 {
     return word >> 8;
+}
+
+static
+uint16_t make_word(uint8_t high, uint8_t low)
+{
+    return (uint16_t)high << 8 | (uint16_t)low;
 }
 
 static
@@ -175,6 +182,30 @@ char *request_wr_bytes(
     return implace_crc(dst, curr, max_size);
 }
 
+int parse_reply_wr_bytes(
+    uint16_t *const mem_addr, uint8_t *const count,
+    const char *const begin, const char *const end)
+{
+    if(!mem_addr || !count) return INVALID_PARAM;
+
+    const size_t expected_size =
+        sizeof(addr_t) + sizeof(fcode_t)
+        + sizeof(uint16_t) /* mem addr */ + sizeof(uint8_t) /* count */
+        + sizeof(crc_t);
+
+    if((size_t)(end - begin) != expected_size) return RTU_REPLY_INVALID_SIZE;
+    if(check_crc(begin, end)) return RTU_REPLY_INVALID_CRC;
+
+    const char *data = begin + sizeof(addr_t) + sizeof(fcode_t);
+    const uint8_t rep_mem_addr_high = *data++;
+    const uint8_t rep_mem_addr_low = *data++;
+    const uint8_t rep_count = *data++;
+
+    *mem_addr = make_word(rep_mem_addr_high, rep_mem_addr_low);
+    *count = rep_count;
+    return 0;
+}
+
 char *request_rd_bytes(
     const addr_t slave_addr,
     const uint16_t mem_addr, const uint8_t count,
@@ -197,12 +228,17 @@ char *request_rd_bytes(
 
 int check_crc(const char *const begin, const char *const end)
 {
-    if((size_t)(end - begin) <= sizeof(crc_t)) return -1; // too short
+    if((size_t)(end - begin) <= sizeof(crc_t)) return RTU_REPLY_INVALID_SIZE;
 
-    const crc_t crc = modbus_rtu_calc_crc((const uint8_t *)begin, (const uint8_t *)end);
+    const uint8_t *const payload_begin = (const uint8_t *)begin;
+    const uint8_t *const payload_end = (const uint8_t *)(end - sizeof(crc_t));
 
-    if(*(end - 2) != low_byte(crc)) return 2;
-    if(*(end - 1) != high_byte(crc)) return 1;
+    const crc_t crc = modbus_rtu_calc_crc(payload_begin, payload_end);
+    const uint8_t crc_low = *(end - 2);
+    const uint8_t crc_high = *(end - 1);
+
+    if(crc_low != low_byte(crc) || crc_high != high_byte(crc))
+        return RTU_REPLY_INVALID_CRC;
     return 0;
 }
 
@@ -211,7 +247,7 @@ const char *find_ecode(const char *begin, const char *end)
     const size_t expected_size =
         sizeof(addr_t) + sizeof(fcode_t) + sizeof(ecode_t) + sizeof(crc_t);
 
-    if((size_t)(end - begin) != expected_size) return NULL; // too short
+    if((size_t)(end - begin) != expected_size) return NULL;
     if(check_crc(begin, end)) return NULL;
     return begin + sizeof(addr_t) + sizeof(fcode_t);
 }

@@ -71,14 +71,15 @@
 #define CALC_MIN_SILENT_INTERVAL_us(BR)
 
 /* Function Codes
- *
- * Invalid: 0
- * Public: 1..65
- * User: 65..72
- * Public: 73..99
- * User: 100..110
- * Public: 111...127
- * 128..255 reserved for exception responses */
+ * ---------------------------
+ * | Invalid    |          0 |
+ * | Public     |   1 ..  65 |
+ * | User       |  65 ..  72 |
+ * | Public     |  73 ..  99 |
+ * | User       | 100 .. 110 |
+ * | Public     | 111 .. 127 |
+ * | Exceptions | 128 .. 255 |
+ * --------------------------- */
 
 #define FCODE_INVALID 0
 

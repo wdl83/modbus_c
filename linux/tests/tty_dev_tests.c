@@ -15,21 +15,18 @@
 #include "util.h"
 
 
-#ifdef NDEBUG
-#define DEBUG_SIZE 0
-#else
 #define DEBUG_SIZE 1024
-#endif
 
 static
 void init(tty_dev_t *master, tty_dev_t *slave)
 {
+    const int debug_size = LOG_LEVEL_DEBUG > current_log_level() ? 0 : DEBUG_SIZE;
     tty_pair_t pair;
 
     tty_pair_init(&pair);
     tty_pair_create(&pair, TTY_DEFAULT_MULTIPLEXOR, NULL);
-    tty_init(master, DEBUG_SIZE);
-    tty_init(slave, DEBUG_SIZE);
+    tty_init(master, debug_size);
+    tty_init(slave, debug_size);
     tty_adopt(master, pair.master_fd);
     tty_open(slave, pair.slave_path, NULL);
     tty_pair_deinit(&pair);
@@ -99,7 +96,7 @@ void *async_read(void *user_data)
 {
     CHECK(user_data);
 
-    async_data_t *data = (async_data_t *)user_data;
+    async_data_t *data = user_data;
     tty_dev_t *dev = data->dev;
     const size_t buf_size = 255;
     buf_t *buf = buf_alloc(buf_size);
@@ -145,7 +142,7 @@ void *async_echo(void *user_data)
     CHECK(user_data);
 
     const char stop[] = "STOP";
-    async_data_t *data = (async_data_t *)user_data;
+    async_data_t *data = user_data;
     tty_dev_t *dev = data->dev;
     char buf[255];
 

@@ -95,7 +95,7 @@ void debug(
 
     dst += min(len, dst_end - dst);
     dst = dump(dst, dst_end, begin, end);
-    len = snprintf(dst, dst_end - dst, "%s\n", curr == begin ? " timeout" : "");
+    len = snprintf(dst, dst_end - dst, "%s", curr == begin ? " timeout" : "");
     dst += min(len, dst_end - dst);
     dev->debug.curr = dst;
 }
@@ -175,13 +175,13 @@ void tty_close(tty_dev_t *dev)
 
 void tty_configure(
     tty_dev_t *dev,
-    speed_t speed, parity_t parity, data_bits_t data_bits, stop_bits_t stop_bits)
+    speed_t rate, parity_t parity, data_bits_t data_bits, stop_bits_t stop_bits)
 {
     CHECK(dev);
     memset(&dev->config, 0, sizeof(dev->config));
-    tty_configure_term(&dev->config, speed, parity, data_bits, stop_bits);
+    tty_configure_term(&dev->config, rate, parity, data_bits, stop_bits);
     tty_set_term_config(dev->fd, &dev->config);
-    logT("%d", dev->fd);
+    logT("%d %dbps", dev->fd, tty_bps(rate));
 }
 
 void validate_syscall_result(int r)
@@ -488,4 +488,32 @@ int tty_bps(speed_t rate)
             CHECK(0 && "unsupported rate");
             return -1;
     }
+}
+
+const char *tty_rate_str(speed_t rate)
+{
+    switch(rate)
+    {
+        case B1200: return "1200";
+        case B2400: return "2400";
+        case B4800: return "4800";
+        case B9600: return "9600";
+        case B19200: return "19200";
+        case B38400: return "38400";
+        case B57600: return "57600";
+        case B115200: return "115200";
+        default: return "unsupported";
+    }
+}
+
+void tty_logD(tty_dev_t *dev)
+{
+    if(!dev || dev->debug.begin == dev->debug.curr) return;
+
+    char *const begin = dev->debug.begin;
+    const char *const end = dev->debug.curr;
+    const int len = end - begin;
+
+    logD("%.*s", len, begin);
+    dev->debug.curr = begin;
 }

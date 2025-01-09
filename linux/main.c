@@ -6,7 +6,6 @@
 
 #include "check.h"
 #include "log.h"
-#include "rtu_cmd.h"
 #include "rtu_impl.h"
 #include "tty.h"
 #include "util.h"
@@ -146,10 +145,10 @@ int main(int argc, const char *argv[])
     if(!path) help(argv[0], "device path missing");
     if(-1 == addr) help(argv[0], "address missing");
 
-    rtu_memory_fields_t memory_fields;
+    rtu_memory_impl_t memory_impl;
 
-    rtu_memory_fields_clear(&memory_fields);
-    rtu_memory_fields_init(&memory_fields);
+    rtu_memory_impl_clear(&memory_impl);
+    rtu_memory_impl_init(&memory_impl);
 
     tty_dev_t dev;
 
@@ -166,10 +165,8 @@ int main(int argc, const char *argv[])
     modbus_rtu_run(
         &dev,
         rate,
-        addr,
-        rtu_pdu_cb,
         timeout_1t5, timeout_3t5,
-        (uintptr_t)&memory_fields,
+        rtu_memory_impl_pdu_cb, (uintptr_t)&memory_impl,
         NULL);
 
     tty_close(&dev);

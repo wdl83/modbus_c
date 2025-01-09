@@ -15,12 +15,19 @@ LDFLAGS += -lrt -lpthread
 
 CSRCS = \
 	linux/buf.c \
+	linux/crc.c \
 	linux/gnu.c \
 	linux/log.c \
-	linux/tests/tty_dev_tests.c \
+	linux/pipe.c \
+	linux/rtu_impl.c \
+	linux/rtu_log_impl.c \
+	linux/tests/rtu_tests.c \
 	linux/time_util.c \
 	linux/tty.c \
 	linux/tty_pair.c \
-	linux/util.c
+	linux/util.c \
+	master.c \
+	rtu.c \
+	rtu_memory.c
 
 include linux/Makefile.rules

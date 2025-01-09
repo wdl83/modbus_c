@@ -1,6 +1,6 @@
 include linux/Makefile.defs
 
-TARGET = rtu_linux
+TARGET = tty_dev_tests
 
 CFLAGS += \
 	-DRTU_ADDR_BASE=0x1000 \
@@ -8,21 +8,19 @@ CFLAGS += \
 	-DTTY_ASYNC_LOW_LATENCY \
 	-I . \
 	-I linux \
+	-I utest \
 	-Wfatal-errors
 
 LDFLAGS += -lrt -lpthread
 
 CSRCS = \
-	linux/crc.c \
+	linux/buf.c \
 	linux/gnu.c \
 	linux/log.c \
-	linux/main.c \
-	linux/rtu_impl.c \
-	linux/rtu_log_impl.c \
+	linux/tests/tty_dev_tests.c \
 	linux/time_util.c \
 	linux/tty.c \
-	linux/util.c \
-	rtu.c \
-	rtu_memory.c
+	linux/tty_pair.c \
+	linux/util.c
 
 include linux/Makefile.rules

@@ -10,11 +10,14 @@
 #define BASE_FILE_NAME "?"
 #endif
 
-/* ERROR    0
- * WARNING  1
- * INFO     2
- * DEBUG    3
- * TRACE    4 */
+typedef enum
+{
+    LOG_LEVEL_ERROR,
+    LOG_LEVEL_WARNING,
+    LOG_LEVEL_INFO,
+    LOG_LEVEL_DEBUG,
+    LOG_LEVEL_TRACE
+} log_level_t;
 
 #ifdef __cplusplus
 extern "C" {

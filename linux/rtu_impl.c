@@ -2,6 +2,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <poll.h>
+
 #include "check.h"
 #include "log.h"
 #include "rtu_impl.h"
@@ -9,24 +11,52 @@
 #include "tty.h"
 #include "util.h"
 
-static
-void log_tty_debug(tty_dev_t *dev)
+
+#ifndef RTU_ADDR_BASE
+#error "Please define RTU_ADDR_BASE"
+#endif
+
+void rtu_memory_impl_clear(rtu_memory_impl_t *impl)
 {
-    if(dev->debug.begin == dev->debug.curr) return;
-
-    char *const begin = dev->debug.begin;
-    const char *const end = dev->debug.curr;
-    const int len = end - begin - (*(end - 1) == '\n' ? 1 : 0);
-
-    logD("%.*s", len, begin);
-    dev->debug.curr = begin;
+    memset(impl, 0, sizeof(rtu_memory_impl_t));
 }
 
-static
-const char *rtu_state_str(unsigned int state)
+void rtu_memory_impl_init(rtu_memory_impl_t *impl)
 {
-    const char *str[] = {"INIT", "IDLE", "SOF", "RECV", "EOF", "BUSY"};
-    return length_of(str) > state ? str[state] : "?";
+    impl->header.addr_begin = RTU_ADDR_BASE;
+    impl->header.addr_end =
+        RTU_ADDR_BASE
+        + sizeof(rtu_memory_impl_t)
+        - sizeof(rtu_memory_header_t);
+}
+
+uint8_t *rtu_memory_impl_pdu_cb(
+    modbus_rtu_state_t *state,
+    modbus_rtu_addr_t addr,
+    modbus_rtu_fcode_t fcode,
+    const uint8_t *begin, const uint8_t *end,
+    /* curr == begin + sizeof(addr_t) + sizeof(fcode_t) */
+    const uint8_t *curr,
+    uint8_t *dst_begin, const uint8_t *const dst_end,
+    uintptr_t user_data)
+{
+
+    rtu_memory_impl_t *memory_impl = (rtu_memory_impl_t *)user_data;
+
+    logT("self %u dst %u", memory_impl->self_addr, addr);
+
+    if(memory_impl->self_addr != addr) goto exit;
+
+    *dst_begin++ = addr;
+
+    dst_begin =
+        rtu_memory_pdu_cb(
+            (rtu_memory_t *)&memory_impl->header,
+            fcode,
+            begin + sizeof(addr), end, curr,
+            dst_begin, dst_end);
+exit:
+    return dst_begin;
 }
 
 typedef struct rtu_impl
@@ -35,8 +65,8 @@ typedef struct rtu_impl
     speed_t rate;
     struct
     {
-        int timeout_1t5;
-        int timeout_3t5;
+        int timeout_1t5_us;
+        int timeout_3t5_us;
         int64_t timestamp_us;
         int64_t timeout_us;
         uint64_t start_cntr;
@@ -83,8 +113,7 @@ int calc_3t5_us(speed_t rate)
 
 }
 
-static
-int calc_timeout_ms(speed_t rate, size_t size)
+int calc_tmin_ms(speed_t rate, size_t size)
 {
     /* t_s = size / (bps / 11)
      *     = (11 * size) / bps
@@ -103,7 +132,7 @@ void timer_start_1t5(modbus_rtu_state_t *state)
     rtu_impl_t *impl = (rtu_impl_t *)state->user_data;
     CHECK(-1 == impl->timer.timeout_us);
     impl->timer.timestamp_us = timestamp_us();
-    impl->timer.timeout_us = impl->timer.timeout_1t5;
+    impl->timer.timeout_us = impl->timer.timeout_1t5_us;
     ++impl->timer.start_cntr;
 }
 
@@ -115,7 +144,7 @@ void timer_start_3t5(modbus_rtu_state_t *state)
     rtu_impl_t *impl = (rtu_impl_t *)state->user_data;
     CHECK(-1 == impl->timer.timeout_us);
     impl->timer.timestamp_us = timestamp_us();
-    impl->timer.timeout_us = impl->timer.timeout_3t5;
+    impl->timer.timeout_us = impl->timer.timeout_3t5_us;
     ++impl->timer.start_cntr;
 }
 
@@ -144,7 +173,7 @@ void timer_reset(modbus_rtu_state_t *state)
 }
 
 static
-void send(modbus_rtu_state_t *state, modbus_rtu_serial_sent_cb_t sent_cb)
+void send_impl(modbus_rtu_state_t *state, modbus_rtu_serial_sent_cb_t sent_cb)
 {
     CHECK(state);
     CHECK(state->user_data);
@@ -155,10 +184,10 @@ void send(modbus_rtu_state_t *state, modbus_rtu_serial_sent_cb_t sent_cb)
     const char *const begin = (const char *)state->txbuf;
     const char *const end = (const char *)state->txbuf_curr;
     const ssize_t size = (size_t)(end - begin);
-    const int timeout = calc_timeout_ms(impl->rate, size);
+    const int timeout = calc_tmin_ms(impl->rate, size);
     const char *const curr = tty_write( impl->dev, begin, end, timeout, NULL);
 
-    log_tty_debug(impl->dev);
+    tty_logD(impl->dev);
     CHECK(end == curr);
     CHECK(sent_cb);
     tty_drain(dev->fd);
@@ -167,12 +196,50 @@ void send(modbus_rtu_state_t *state, modbus_rtu_serial_sent_cb_t sent_cb)
 }
 
 static
+int recv_impl(modbus_rtu_state_t *state, rtu_impl_t *impl, tty_dev_t *dev, struct pollfd *user_event)
+{
+    char buf[ADU_CAPACITY];
+
+    memset(buf, 0, sizeof(buf));
+
+    const char *const end =
+        -1 == impl->timer.timeout_us
+        ? tty_read(dev, buf, buf + sizeof(buf), -1, user_event)
+        : tty_read_ll(dev, buf, buf + sizeof(buf), impl->timer.timeout_us);
+
+    tty_logD(dev);
+
+    for(const char *begin = buf; begin != end; ++begin)
+    {
+        // TODO: handle serial errors (serial_recv_err_cb)
+        state->serial_recv_cb(state, *begin);
+        modbus_rtu_event(state);
+    }
+
+    return !user_event ? 0 : user_event->events & user_event->revents;
+}
+
+static
+void timeout_impl(modbus_rtu_state_t *state, rtu_impl_t *impl)
+{
+    if(-1 == impl->timer.timeout_us) return;
+
+    const int64_t elapsed = timestamp_us() - impl->timer.timestamp_us;
+
+    if(elapsed >= impl->timer.timeout_us)
+    {
+        logD("timeout %" PRId64 "us", elapsed);
+        CHECK(state->timer_cb);
+        state->timer_cb(state);
+        modbus_rtu_event(state);
+    }
+}
+
+static
 uint8_t *pdu_cb_proxy(
     modbus_rtu_state_t *state,
-    modbus_rtu_addr_t addr,
-    modbus_rtu_fcode_t fcode,
-    const uint8_t *begin, const uint8_t *end,
-    const uint8_t *curr,
+    modbus_rtu_addr_t addr, modbus_rtu_fcode_t fcode,
+    const uint8_t *begin, const uint8_t *end, const uint8_t *curr,
     uint8_t *dst_begin, const uint8_t *const dst_end,
     uintptr_t user_data)
 {
@@ -185,8 +252,7 @@ uint8_t *pdu_cb_proxy(
         impl->pdu_cb(
             state,
             addr, fcode,
-            begin, end,
-            curr,
+            begin, end, curr,
             dst_begin, dst_end,
             impl->user_data);
 }
@@ -194,10 +260,8 @@ uint8_t *pdu_cb_proxy(
 void modbus_rtu_run(
     tty_dev_t *dev,
     speed_t rate,
-    modbus_rtu_addr_t self_addr,
-    modbus_rtu_pdu_cb_t pdu_cb,
-    int timeout_1t5, int timeout_3t5,
-    uintptr_t user_data,
+    int timeout_1t5_us, int timeout_3t5_us,
+    modbus_rtu_pdu_cb_t pdu_cb, uintptr_t user_data,
     struct pollfd *user_event)
 {
     rtu_impl_t impl =
@@ -206,8 +270,8 @@ void modbus_rtu_run(
         .rate = rate,
         .timer =
         {
-            .timeout_1t5 = -1 == timeout_1t5 ? calc_1t5_us(rate) : timeout_1t5,
-            .timeout_3t5 = -1 == timeout_3t5 ? calc_3t5_us(rate) : timeout_3t5,
+            .timeout_1t5_us = -1 == timeout_1t5_us ? calc_1t5_us(rate) : timeout_1t5_us,
+            .timeout_3t5_us = -1 == timeout_3t5_us ? calc_3t5_us(rate) : timeout_3t5_us,
             .timestamp_us = timestamp_us(),
             .timeout_us = -1,
             .start_cntr = 0,
@@ -218,51 +282,23 @@ void modbus_rtu_run(
         .user_data = user_data
     };
 
-    logD("1.5t %dus, 3.5t %dus", impl.timer.timeout_1t5, impl.timer.timeout_3t5);
+    logD("1.5t %dus, 3.5t %dus", impl.timer.timeout_1t5_us, impl.timer.timeout_3t5_us);
 
     modbus_rtu_state_t state;
 
     modbus_rtu_init(
         &state,
-        self_addr,
         timer_start_1t5, timer_start_3t5, timer_stop, timer_reset,
-        send,
+        send_impl,
         pdu_cb_proxy,
         NULL /* suspend */, NULL /* resume */,
         (uintptr_t)&impl);
 
-    char buf[ADU_CAPACITY];
+    modbus_rtu_event(&state);
 
-    for(;;)
+    for(int stop = 0; !stop;)
     {
-        modbus_rtu_event(&state);
-        memset(buf, 0, sizeof(buf));
-
-        const char *const end =
-            -1 == impl.timer.timeout_us
-            ? tty_read(dev, buf, buf + sizeof(buf), -1, user_event)
-            : tty_read_ll(dev, buf, buf + sizeof(buf), impl.timer.timeout_us);
-
-        log_tty_debug(dev);
-
-        for(const char *begin = buf; begin != end; ++begin)
-        {
-            // TODO: handle serial errors (serial_recv_err_cb)
-            state.serial_recv_cb(&state, *begin);
-            modbus_rtu_event(&state);
-        }
-
-        if(-1 != impl.timer.timeout_us)
-        {
-            const int64_t elapsed = timestamp_us() - impl.timer.timestamp_us;
-
-            if(elapsed >= impl.timer.timeout_us)
-            {
-                logD("timeout %" PRId64 "us", elapsed);
-                CHECK(state.timer_cb);
-                state.timer_cb(&state);
-                modbus_rtu_event(&state);
-            }
-        }
+        stop = recv_impl(&state, &impl, dev, user_event);
+        timeout_impl(&state, &impl);
     }
 }

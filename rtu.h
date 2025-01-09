@@ -87,13 +87,13 @@
 /* --> 1-bit Physical Discrete Inputs */
 
 /* <-- 1-bit Internal Bits or Physical coils */
-#define FCODE_RD_COIL 1
+#define FCODE_RD_COILS 1
 #define FCODE_WR_COIL 5
 #define FCODE_WR_COILS 15
 /* --> 1-bit Internal Bits or Physical coils */
 
 /* <-- 16-bit Physical Input Registers */
-#define FCODE_RD_IN_REGISTER 4
+#define FCODE_RD_IN_REGISTERS 4
 /* --> Physical Input Registers */
 
 /* <-- 16bit Internal Registers of Physical Output Registers */
@@ -210,8 +210,7 @@ uint8_t *(*modbus_rtu_pdu_cb_t)(
     modbus_rtu_state_t *,
     modbus_rtu_addr_t,
     modbus_rtu_fcode_t,
-    const uint8_t *begin, const uint8_t *end,
-    const uint8_t *curr,
+    const uint8_t *begin, const uint8_t *end, const uint8_t *curr,
     uint8_t *dst_begin, const uint8_t *const dst_end,
     uintptr_t user_data);
 
@@ -293,12 +292,10 @@ struct modbus_rtu_state
     } stats;
 
     modbus_rtu_status_t status;
-    modbus_rtu_addr_t addr;
 };
 
 void modbus_rtu_init(
     modbus_rtu_state_t *,
-    modbus_rtu_addr_t,
     modbus_rtu_timer_start_t /* 1.5t */,
     modbus_rtu_timer_start_t /* 3.5t */,
     modbus_rtu_timer_stop_t,
@@ -310,6 +307,4 @@ void modbus_rtu_init(
     uintptr_t);
 
 void modbus_rtu_event(modbus_rtu_state_t *);
-
-modbus_rtu_addr_t modbus_rtu_addr(modbus_rtu_state_t *state);
 bool modbus_rtu_idle(modbus_rtu_state_t *);

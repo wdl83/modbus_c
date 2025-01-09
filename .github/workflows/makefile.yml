@@ -17,6 +17,10 @@ jobs:
         submodules: recursive
     - name: build_rtu_linux
       run: make -f rtu_linux.mk
+    - name: build_tty_linux_tests
+      run: make -f tty_linux_tests.mk
+    - name: run_tty_linux_tests
+      run: make -f tty_linux_tests.mk run
     - name: build_rtu_linux_tests
       run: make -f rtu_linux_tests.mk 
     - name: run_rtu_linux_tests

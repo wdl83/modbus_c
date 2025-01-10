@@ -6,14 +6,14 @@
 #include "rtu.h"
 #include "log.h"
 
+
 typedef modbus_rtu_addr_t addr_t;
 typedef modbus_rtu_fcode_t fcode_t;
 typedef modbus_rtu_ecode_t ecode_t;
 typedef modbus_rtu_crc_t crc_t;
 
-
 static
-char *implace_crc(char *const begin, char *const end, const size_t max_size)
+char *implace_crc_impl(char *const begin, char *const end, const size_t max_size)
 {
     if((size_t)(end - begin) + sizeof(crc_t) > max_size) return NULL;
 
@@ -23,6 +23,13 @@ char *implace_crc(char *const begin, char *const end, const size_t max_size)
     *curr++ = crc.low;
     *curr++ = crc.high;
     return curr;
+}
+
+void *implace_crc(void *const adu, size_t adu_size)
+{
+    char *begin = (char *)adu;
+    char *end = begin + adu_size;
+    return implace_crc_impl(begin, end - sizeof(crc_t), adu_size);
 }
 
 char *request_rd_coils(
@@ -42,7 +49,7 @@ char *request_rd_coils(
 
     if(sizeof(req) > max_size) return NULL;
     memcpy(dst, req, sizeof(req));
-    return implace_crc(dst, dst + sizeof(req), max_size);
+    return implace_crc_impl(dst, dst + sizeof(req), max_size);
 }
 
 char *request_rd_holding_registers(
@@ -62,7 +69,7 @@ char *request_rd_holding_registers(
 
     if(sizeof(req) > max_size) return NULL;
     memcpy(dst, req, sizeof(req));
-    return implace_crc(dst, dst + sizeof(req), max_size);
+    return implace_crc_impl(dst, dst + sizeof(req), max_size);
 }
 
 char *request_wr_coil(
@@ -82,7 +89,7 @@ char *request_wr_coil(
 
     if(sizeof(req) > max_size) return NULL; // provided user buffer too small
     memcpy(dst, req, sizeof(req));
-    return implace_crc(dst, dst + sizeof(req), max_size);
+    return implace_crc_impl(dst, dst + sizeof(req), max_size);
 }
 
 char *request_wr_register(
@@ -99,7 +106,7 @@ char *request_wr_register(
 
     if(sizeof(req) > max_size) return NULL;
     memcpy(dst, req, sizeof(req));
-    return implace_crc(dst, dst + sizeof(req), max_size);
+    return implace_crc_impl(dst, dst + sizeof(req), max_size);
 }
 
 char *request_wr_registers(
@@ -134,7 +141,7 @@ char *request_wr_registers(
         *curr++ = LOW_BYTE(*i);
     }
 
-    return implace_crc(dst, curr, max_size);
+    return implace_crc_impl(dst, curr, max_size);
 }
 
 char *request_wr_bytes(
@@ -161,7 +168,7 @@ char *request_wr_bytes(
     if(count > (size_t)(dst_end - curr)) return NULL;
     memcpy(curr, data, count);
     curr += count;
-    return implace_crc(dst, curr, max_size);
+    return implace_crc_impl(dst, curr, max_size);
 }
 
 const modbus_rtu_wr_bytes_reply_t *
@@ -195,7 +202,7 @@ char *request_rd_bytes(
 
     if(sizeof(req) > max_size) return NULL;
     memcpy(dst, req, sizeof(req));
-    return implace_crc(dst, dst + sizeof(req), max_size);
+    return implace_crc_impl(dst, dst + sizeof(req), max_size);
 }
 
 int check_crc(const char *const begin, const char *const end)

@@ -204,6 +204,8 @@ typedef struct
 } modbus_rtu_mem_addr_t;
 
 #define MEM_ADDR_TO_WORD(mem_addr)        MAKE_WORD(mem_addr.low, mem_addr.high)
+#define WORD_TO_MEM_ADDR(word) \
+         (modbus_rtu_mem_addr_t){.high = HIGH_BYTE(word), .low = LOW_BYTE(word)}
 
 typedef uint8_t modbus_rtu_ecode_t; /* exception */
 

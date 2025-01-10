@@ -238,4 +238,48 @@ UTEST_I(TestFixture, write_bytes_STR, 7)
     }
 }
 
+/* check if both methods produce same requests */
+UTEST(rtu_tests, wr_bytes_request)
+{
+    const char msg[] = "!!!hello this is RTU memory!!!";
+
+    // method A
+
+    struct __attribute__((packed))
+    {
+        modbus_rtu_wr_bytes_request_header_t header;
+        char data[sizeof(msg)];
+        modbus_rtu_crc_t crc;
+    } reqA =
+    {
+        .header =
+        {
+            .addr = 0xAB,
+            .fcode = FCODE_WR_BYTES,
+            .mem_addr = WORD_TO_MEM_ADDR(0x1234),
+            .count = length_of(msg)
+        }
+    };
+
+    memcpy(reqA.data, msg, sizeof(msg));
+    ASSERT_NE(NULL, implace_crc(&reqA, sizeof(reqA)));
+
+    // method B
+
+    char reqB[ADU_CAPACITY];
+
+    memset(reqB, 0, sizeof(reqB));
+
+    const char *const reqB_end =
+        request_wr_bytes(
+            0xAB, 0x1234, (const uint8_t *)msg, length_of(msg), reqB, sizeof(reqB));
+
+    ASSERT_NE(NULL, reqB_end);
+
+    // must produce same results
+
+    EXPECT_EQ((size_t)(reqB_end - reqB), sizeof(reqA));
+    EXPECT_EQ(0, memcmp(&reqA, reqB, sizeof(reqA)));
+}
+
 UTEST_MAIN();

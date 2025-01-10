@@ -133,8 +133,8 @@ UTEST_I_SETUP(TestFixture)
     pthread_cond_wait(&tf->rtu_config.cond, &tf->rtu_config.mutex);
     pthread_mutex_unlock(&tf->rtu_config.mutex);
 
-    // time required for RTU to transition from INIT to IDLE state
-    usleep(tf->rtu_config.timeout_3t5_us);
+    // time required for RTU to transition from INIT to IDLE state (at least 10ms)
+    usleep(max(100000, tf->rtu_config.timeout_3t5_us));
 }
 
 UTEST_I_TEARDOWN(TestFixture)

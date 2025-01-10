@@ -48,14 +48,6 @@ typedef struct __attribute__((packed))
     uint8_t data[];
 } modbus_rtu_wr_bytes_request_header_t;
 
-/* usage:
- *    struct {
- *        modbus_rtu_wr_bytes_request_header_t header;
- *        char data[DATA_SIZE];
- *        modbus_rtu_crc_t crc;
- *    } req = {.header = {...}, ...};
- */
-
 char *request_wr_bytes(
     modbus_rtu_addr_t,
     modbus_rtu_mem_addr_t, const uint8_t *data, uint8_t count,
@@ -89,7 +81,19 @@ char *request_rd_bytes(
     modbus_rtu_mem_addr_t, uint8_t count,
     char *dst, size_t max_size);
 
+typedef struct __attribute__((packed))
+{
+    modbus_rtu_addr_t addr;
+    modbus_rtu_fcode_t fcode;
+    modbus_rtu_mem_addr_t mem_addr;
+    uint8_t count;
+    uint8_t data[];
+} modbus_rtu_rd_bytes_reply_header_t;
+
+const modbus_rtu_rd_bytes_reply_header_t *parse_reply_rd_bytes(
+    const char *begin, const char *end);
+
 /* MISC ----------------------------------------------------------------------*/
 
-int check_crc(const char *begin, const char *end);
+int crc_mismatch(const char *begin, const char *end);
 const char *find_ecode(const char *begin, const char *end);

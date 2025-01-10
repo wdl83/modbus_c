@@ -185,8 +185,15 @@ UTEST_I(TestFixture, read_bytes_N1, 7)
         const char *const rep_end = master_read(tf, rep, rep + length_of(rep));
         EXPECT_NE(rep, rep_end);
         tty_logD(&tf->master);
-        EXPECT_EQ(0, check_crc(rep, rep_end));
-        EXPECT_EQ(NULL, find_ecode(rep,rep_end));
+
+        const modbus_rtu_rd_bytes_reply_header_t *rep_s =
+            parse_reply_rd_bytes(rep, rep_end);
+
+        EXPECT_NE(NULL, rep_s);
+        EXPECT_EQ(rep_s->addr, tf->rtu_config.self_addr);
+        EXPECT_EQ(rep_s->fcode, FCODE_RD_BYTES);
+        EXPECT_EQ(MEM_ADDR_TO_WORD(rep_s->mem_addr), RTU_ADDR_BASE);
+        EXPECT_EQ(rep_s->count, 1);
     }
 }
 
@@ -217,13 +224,8 @@ UTEST_I(TestFixture, write_bytes_func_STR, 7)
         EXPECT_NE(rep, rep_end);
         tty_logD(&tf->master);
 
-        EXPECT_EQ(0, check_crc(rep, rep_end));
+        EXPECT_FALSE(crc_mismatch(rep, rep_end));
         EXPECT_EQ(NULL, find_ecode(rep, rep_end));
-        EXPECT_EQ(
-            (size_t)(rep_end - rep),
-            sizeof(modbus_rtu_addr_t) + sizeof(modbus_rtu_fcode_t)
-            + sizeof(uint16_t) /* mem addr */ + sizeof(uint8_t) /* count */
-            + sizeof(modbus_rtu_crc_t));
 
         const modbus_rtu_wr_bytes_reply_t *rep_s =
             parse_reply_wr_bytes(rep, rep_end);
@@ -270,7 +272,7 @@ UTEST_I(TestFixture, write_bytes_struct_STR, 7)
         const char *const rep_end = rep_begin + sizeof(rep);
         EXPECT_EQ(rep_end, master_read(tf, rep_begin, rep_end));
         tty_logD(&tf->master);
-        EXPECT_EQ(0, check_crc(rep_begin, rep_end));
+        EXPECT_FALSE(crc_mismatch(rep_begin, rep_end));
         EXPECT_EQ(rep.addr, tf->rtu_config.self_addr);
         EXPECT_EQ(rep.fcode, FCODE_WR_BYTES);
         EXPECT_EQ(MEM_ADDR_TO_WORD(rep.mem_addr), RTU_ADDR_BASE);

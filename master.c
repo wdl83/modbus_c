@@ -174,13 +174,14 @@ char *request_wr_bytes(
 const modbus_rtu_wr_bytes_reply_t *
 parse_reply_wr_bytes(const char *const begin, const char *const end)
 {
+    const size_t size = end - begin;
     const size_t expected_size =
         sizeof(addr_t) + sizeof(fcode_t)
         + sizeof(uint16_t) /* mem addr */ + sizeof(uint8_t) /* count */
         + sizeof(crc_t);
 
-    if((size_t)(end - begin) != expected_size) return NULL;
-    if(check_crc(begin, end)) return NULL;
+    if(size != expected_size) return NULL;
+    if(crc_mismatch(begin, end)) return NULL;
 
     return (const modbus_rtu_wr_bytes_reply_t *)begin;
 }
@@ -205,7 +206,24 @@ char *request_rd_bytes(
     return implace_crc_impl(dst, dst + sizeof(req), max_size);
 }
 
-int check_crc(const char *const begin, const char *const end)
+const modbus_rtu_rd_bytes_reply_header_t *
+parse_reply_rd_bytes(const char *const begin, const char *const end)
+{
+    const size_t size = end - begin;
+    const size_t expected_min_size =
+        sizeof(modbus_rtu_rd_bytes_reply_header_t) + sizeof(crc_t);
+
+    if(expected_min_size > size) return NULL;
+
+    const modbus_rtu_rd_bytes_reply_header_t *header =
+        (const modbus_rtu_rd_bytes_reply_header_t *)begin;
+
+    if(expected_min_size + header->count != size) return NULL;
+    if(crc_mismatch(begin, end)) return NULL;
+    return header;
+}
+
+int crc_mismatch(const char *const begin, const char *const end)
 {
     if((size_t)(end - begin) <= sizeof(crc_t)) return RTU_REPLY_INVALID_SIZE;
 
@@ -226,6 +244,6 @@ const char *find_ecode(const char *begin, const char *end)
         sizeof(addr_t) + sizeof(fcode_t) + sizeof(ecode_t) + sizeof(crc_t);
 
     if((size_t)(end - begin) != expected_size) return NULL;
-    if(check_crc(begin, end)) return NULL;
+    if(crc_mismatch(begin, end)) return NULL;
     return begin + sizeof(addr_t) + sizeof(fcode_t);
 }

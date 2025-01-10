@@ -17,8 +17,9 @@
 #include "utest.h"
 #include "util.h"
 
-#define DEBUG_SIZE 1024
-#define RTU_ADDR UINT8_C(0xAA)
+#define DEBUG_SIZE                                                          1024
+#define RTU_ADDR                                                   UINT8_C(0xAA)
+#define RTU_MEM_ADDR_BASE                        WORD_TO_MEM_ADDR(RTU_ADDR_BASE)
 
 typedef struct
 {
@@ -79,7 +80,7 @@ void *async_run_rtu(void *user_data)
 }
 
 static
-void init(tty_dev_t *master, tty_dev_t *slave)
+void serial_init(tty_dev_t *master, tty_dev_t *slave)
 {
     const int debug_size = LOG_LEVEL_DEBUG > current_log_level() ? 0 : DEBUG_SIZE;
     tty_pair_t pair;
@@ -96,7 +97,7 @@ void init(tty_dev_t *master, tty_dev_t *slave)
 }
 
 static
-void config(tty_dev_t *master, tty_dev_t *slave, speed_t rate, parity_t parity)
+void serial_config(tty_dev_t *master, tty_dev_t *slave, speed_t rate, parity_t parity)
 {
     tty_dev_t *devs[] = {master, slave};
     const stop_bits_t stop_bits = PARITY_none == parity ? STOP_BITS_2 : STOP_BITS_1;
@@ -106,7 +107,7 @@ void config(tty_dev_t *master, tty_dev_t *slave, speed_t rate, parity_t parity)
 }
 
 static
-void deinit(tty_dev_t *master, tty_dev_t *slave)
+void serial_deinit(tty_dev_t *master, tty_dev_t *slave)
 {
     tty_deinit(slave);
     tty_deinit(master);
@@ -124,8 +125,8 @@ UTEST_I_SETUP(TestFixture)
 
     memset(tf, 0, sizeof(struct TestFixture));
 
-    init(&tf->master, &tf->slave);
-    config(&tf->master, &tf->slave, rate, PARITY_none);
+    serial_init(&tf->master, &tf->slave);
+    serial_config(&tf->master, &tf->slave, rate, PARITY_none);
     tty_flush(tf->master.fd);
     tty_flush(tf->slave.fd);
     pipe_open(&tf->channel, NULL);
@@ -160,7 +161,7 @@ UTEST_I_TEARDOWN(TestFixture)
 
     CHECK_ERRNO(-1 != write(tf->channel.writer, stop, sizeof(stop)));
     CHECK_ERRNO(0 == pthread_join(tf->runner, NULL));
-    deinit(&tf->master, &tf->slave);
+    serial_deinit(&tf->master, &tf->slave);
 }
 
 UTEST_I(TestFixture, read_bytes_N1, 7)
@@ -172,7 +173,7 @@ UTEST_I(TestFixture, read_bytes_N1, 7)
         char req[ADU_CAPACITY];
         memset(req, 0, sizeof(req));
         const char *const req_end =
-            request_rd_bytes(tf->rtu_config.self_addr, RTU_ADDR_BASE, 1, req, sizeof(req));
+            request_rd_bytes(tf->rtu_config.self_addr, RTU_MEM_ADDR_BASE, 1, req, sizeof(req));
         ASSERT_NE(NULL, req_end);
         EXPECT_EQ(req_end, master_write(tf,req, req_end));
         tty_logD(&tf->master);
@@ -202,7 +203,7 @@ UTEST_I(TestFixture, write_bytes_func_STR, 7)
         const char *const req_end =
             request_wr_bytes(
                 tf->rtu_config.self_addr,
-                RTU_ADDR_BASE, (const uint8_t *)message, length_of(message),
+                RTU_MEM_ADDR_BASE, (const uint8_t *)message, length_of(message),
                 req, sizeof(req));
         ASSERT_NE(NULL, req_end);
         EXPECT_EQ(req_end, master_write(tf, req, req_end));
@@ -251,7 +252,7 @@ UTEST_I(TestFixture, write_bytes_struct_STR, 7)
             .header = {
                 .addr = tf->rtu_config.self_addr,
                 .fcode = FCODE_WR_BYTES,
-                .mem_addr = WORD_TO_MEM_ADDR(RTU_ADDR_BASE),
+                .mem_addr = RTU_MEM_ADDR_BASE,
                 .count = length_of(message)
             }
         };
@@ -308,7 +309,10 @@ UTEST(rtu_tests, wr_bytes_request)
 
     const char *const reqB_end =
         request_wr_bytes(
-            0xAB, 0x1234, (const uint8_t *)msg, length_of(msg), reqB, sizeof(reqB));
+            0xAB,
+            WORD_TO_MEM_ADDR(0x1234),
+            (const uint8_t *)msg, length_of(msg),
+            reqB, sizeof(reqB));
     ASSERT_NE(NULL, reqB_end);
 
     // must produce same results

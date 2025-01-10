@@ -34,7 +34,7 @@ void *implace_crc(void *const adu, size_t adu_size)
 
 char *request_rd_coils(
     const addr_t slave_addr,
-    const uint16_t mem_addr, const uint8_t count,
+    const modbus_rtu_mem_addr_t mem_addr, const uint8_t count,
     char *const dst, const size_t max_size)
 {
     if(!dst) return NULL;
@@ -43,7 +43,7 @@ char *request_rd_coils(
     const char req[] =
     {
         slave_addr, FCODE_RD_COILS,
-        HIGH_BYTE(mem_addr), LOW_BYTE(mem_addr),
+        mem_addr.high, mem_addr.low,
         UINT8_C(0), count
     };
 
@@ -54,7 +54,7 @@ char *request_rd_coils(
 
 char *request_rd_holding_registers(
     const addr_t slave_addr,
-    const uint16_t mem_addr, const uint8_t count,
+    const modbus_rtu_mem_addr_t mem_addr, const uint8_t count,
     char *const dst, const size_t max_size)
 {
     if(!dst) return NULL;
@@ -63,7 +63,7 @@ char *request_rd_holding_registers(
     const char req[] =
     {
         slave_addr, FCODE_RD_HOLDING_REGISTERS,
-        HIGH_BYTE(mem_addr), LOW_BYTE(mem_addr),
+        mem_addr.high, mem_addr.low,
         UINT8_C(0), count
     };
 
@@ -74,7 +74,7 @@ char *request_rd_holding_registers(
 
 char *request_wr_coil(
     const addr_t slave_addr,
-    const uint16_t mem_addr, const uint8_t data,
+    const modbus_rtu_mem_addr_t mem_addr, const uint8_t data,
     char *const dst, const size_t max_size)
 {
     if(!dst) return NULL;
@@ -83,7 +83,7 @@ char *request_wr_coil(
     const char req[] =
     {
         slave_addr, FCODE_WR_COIL,
-        HIGH_BYTE(mem_addr), LOW_BYTE(mem_addr),
+        mem_addr.high, mem_addr.low,
         data, UINT8_C(0)
     };
 
@@ -94,13 +94,13 @@ char *request_wr_coil(
 
 char *request_wr_register(
     const addr_t slave_addr,
-    const uint16_t mem_addr, const uint16_t data,
+    const modbus_rtu_mem_addr_t mem_addr, const uint16_t data,
     char *const dst, const size_t max_size)
 {
     const char req[] =
     {
         slave_addr, FCODE_WR_REGISTER,
-        HIGH_BYTE(mem_addr), LOW_BYTE(mem_addr),
+        mem_addr.high, mem_addr.low,
         HIGH_BYTE(data), LOW_BYTE(data)
     };
 
@@ -111,7 +111,7 @@ char *request_wr_register(
 
 char *request_wr_registers(
     addr_t slave_addr,
-    uint16_t mem_addr, const uint16_t *const data, const uint8_t count,
+    modbus_rtu_mem_addr_t mem_addr, const uint16_t *const data, const uint8_t count,
     char *const dst, const size_t max_size)
 {
     if(!data || !dst) return NULL;
@@ -120,7 +120,7 @@ char *request_wr_registers(
     const char req_header[] =
     {
         slave_addr, FCODE_WR_REGISTERS,
-        HIGH_BYTE(mem_addr), LOW_BYTE(mem_addr), /* starting address */
+        mem_addr.high, mem_addr.low, /* starting address */
         UINT8_C(0), count, /* quantity of registers */
         count << 1, /* byte_count */
     };
@@ -145,7 +145,7 @@ char *request_wr_registers(
 }
 
 char *request_wr_bytes(
-    addr_t slave_addr, uint16_t mem_addr,
+    addr_t slave_addr, modbus_rtu_mem_addr_t mem_addr,
     const uint8_t *const data, const uint8_t count,
     char *const dst, const size_t max_size)
 {
@@ -155,7 +155,7 @@ char *request_wr_bytes(
     const char req_header[] =
     {
         slave_addr, FCODE_WR_BYTES,
-        HIGH_BYTE(mem_addr), LOW_BYTE(mem_addr),
+        mem_addr.high, mem_addr.low,
         count
     };
     char *curr = dst;
@@ -187,7 +187,7 @@ parse_reply_wr_bytes(const char *const begin, const char *const end)
 
 char *request_rd_bytes(
     const addr_t slave_addr,
-    const uint16_t mem_addr, const uint8_t count,
+    const modbus_rtu_mem_addr_t mem_addr, const uint8_t count,
     char *const dst, const size_t max_size)
 {
     if(!dst) return NULL;
@@ -196,7 +196,7 @@ char *request_rd_bytes(
     const char req[] =
     {
         slave_addr, FCODE_RD_BYTES,
-        HIGH_BYTE(mem_addr), LOW_BYTE(mem_addr),
+        mem_addr.high, mem_addr.low,
         count
     };
 

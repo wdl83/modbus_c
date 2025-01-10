@@ -14,28 +14,30 @@ void *implace_crc(void *adu, size_t adu_size);
 
 char *request_rd_coils(
     modbus_rtu_addr_t,
-    uint16_t mem_addr, uint8_t count,
+    modbus_rtu_mem_addr_t, uint8_t count,
     char *dst, size_t max_size);
 
 char *request_rd_holding_registers(
     modbus_rtu_addr_t,
-    uint16_t mem_addr, uint8_t count,
+    modbus_rtu_mem_addr_t, uint8_t count,
     char *dst, size_t max_size);
 
 char *request_wr_coil(
     modbus_rtu_addr_t,
-    uint16_t mem_addr, uint8_t data,
+    modbus_rtu_mem_addr_t, uint8_t data,
     char *dst, size_t max_size);
 
 char *request_wr_register(
     modbus_rtu_addr_t,
-    uint16_t mem_addr, uint16_t data,
+    modbus_rtu_mem_addr_t, uint16_t data,
     char *dst, size_t max_size);
 
 char *request_wr_registers(
     modbus_rtu_addr_t,
-    uint16_t mem_addr, const uint16_t *data, uint8_t count,
+    modbus_rtu_mem_addr_t, const uint16_t *data, uint8_t count,
     char *dst, size_t max_size);
+
+/* FCODE_WR_BYTES ------------------------------------------------------------*/
 
 typedef struct __attribute__((packed))
 {
@@ -56,7 +58,7 @@ typedef struct __attribute__((packed))
 
 char *request_wr_bytes(
     modbus_rtu_addr_t,
-    uint16_t mem_addr, const uint8_t *data, uint8_t count,
+    modbus_rtu_mem_addr_t, const uint8_t *data, uint8_t count,
     char *dst, size_t max_size);
 
 typedef struct __attribute__((packed))
@@ -71,10 +73,7 @@ typedef struct __attribute__((packed))
 const modbus_rtu_wr_bytes_reply_t *parse_reply_wr_bytes(
     const char *begin, const char *end);
 
-char *request_rd_bytes(
-    modbus_rtu_addr_t,
-    uint16_t mem_addr, uint8_t count,
-    char *dst, size_t max_size);
+/* FCODE_RD_BYTES ------------------------------------------------------------*/
 
 typedef struct __attribute__((packed))
 {
@@ -84,6 +83,13 @@ typedef struct __attribute__((packed))
     uint8_t count;
     modbus_rtu_crc_t crc;
 } modbus_rtu_rd_bytes_request_t;
+
+char *request_rd_bytes(
+    modbus_rtu_addr_t,
+    modbus_rtu_mem_addr_t, uint8_t count,
+    char *dst, size_t max_size);
+
+/* MISC ----------------------------------------------------------------------*/
 
 int check_crc(const char *begin, const char *end);
 const char *find_ecode(const char *begin, const char *end);

@@ -229,12 +229,12 @@ UTEST_I(TestFixture, write_bytes_STR, 7)
             + sizeof(uint16_t) /* mem addr */ + sizeof(uint8_t) /* count */
             + sizeof(modbus_rtu_crc_t));
 
-        uint16_t mem_addr = 0;
-        uint8_t count = 0;
+        const modbus_rtu_wr_bytes_reply_t *wr_bytes_rep =
+            parse_reply_wr_bytes(rep, rep_end);
 
-        EXPECT_EQ(0, parse_reply_wr_bytes(&mem_addr, &count, rep, rep_end));
-        EXPECT_EQ(mem_addr, RTU_ADDR_BASE);
-        EXPECT_EQ(count, length_of(message));
+        EXPECT_NE(NULL, wr_bytes_rep);
+        EXPECT_EQ(MAKE_WORD(wr_bytes_rep->mem_addr.low, wr_bytes_rep->mem_addr.high), RTU_ADDR_BASE);
+        EXPECT_EQ(wr_bytes_rep->count, length_of(message));
     }
 }
 

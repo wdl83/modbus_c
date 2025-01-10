@@ -13,24 +13,6 @@ typedef modbus_rtu_crc_t crc_t;
 
 
 static
-uint8_t low_byte(uint16_t word)
-{
-    return word & UINT16_C(0xFF);
-}
-
-static
-uint8_t high_byte(uint16_t word)
-{
-    return word >> 8;
-}
-
-static
-uint16_t make_word(uint8_t high, uint8_t low)
-{
-    return (uint16_t)high << 8 | (uint16_t)low;
-}
-
-static
 char *implace_crc(char *const begin, char *const end, const size_t max_size)
 {
     if((size_t)(end - begin) + sizeof(crc_t) > max_size) return NULL;
@@ -38,8 +20,8 @@ char *implace_crc(char *const begin, char *const end, const size_t max_size)
     const crc_t crc = modbus_rtu_calc_crc((const uint8_t *)begin, (const uint8_t *)end);
     char *curr = end;
 
-    *curr++ = low_byte(crc);
-    *curr++ = high_byte(crc);
+    *curr++ = crc.low;
+    *curr++ = crc.high;
     return curr;
 }
 
@@ -54,7 +36,7 @@ char *request_rd_coils(
     const char req[] =
     {
         slave_addr, FCODE_RD_COILS,
-        high_byte(mem_addr), low_byte(mem_addr),
+        HIGH_BYTE(mem_addr), LOW_BYTE(mem_addr),
         UINT8_C(0), count
     };
 
@@ -74,7 +56,7 @@ char *request_rd_holding_registers(
     const char req[] =
     {
         slave_addr, FCODE_RD_HOLDING_REGISTERS,
-        high_byte(mem_addr), low_byte(mem_addr),
+        HIGH_BYTE(mem_addr), LOW_BYTE(mem_addr),
         UINT8_C(0), count
     };
 
@@ -94,7 +76,7 @@ char *request_wr_coil(
     const char req[] =
     {
         slave_addr, FCODE_WR_COIL,
-        high_byte(mem_addr), low_byte(mem_addr),
+        HIGH_BYTE(mem_addr), LOW_BYTE(mem_addr),
         data, UINT8_C(0)
     };
 
@@ -111,8 +93,8 @@ char *request_wr_register(
     const char req[] =
     {
         slave_addr, FCODE_WR_REGISTER,
-        high_byte(mem_addr), low_byte(mem_addr),
-        high_byte(data), low_byte(data)
+        HIGH_BYTE(mem_addr), LOW_BYTE(mem_addr),
+        HIGH_BYTE(data), LOW_BYTE(data)
     };
 
     if(sizeof(req) > max_size) return NULL;
@@ -131,7 +113,7 @@ char *request_wr_registers(
     const char req_header[] =
     {
         slave_addr, FCODE_WR_REGISTERS,
-        high_byte(mem_addr), low_byte(mem_addr), /* starting address */
+        HIGH_BYTE(mem_addr), LOW_BYTE(mem_addr), /* starting address */
         UINT8_C(0), count, /* quantity of registers */
         count << 1, /* byte_count */
     };
@@ -147,9 +129,9 @@ char *request_wr_registers(
         i != end; ++i)
     {
         if(dst_end == curr) return NULL;
-        *curr++ = high_byte(*i);
+        *curr++ = HIGH_BYTE(*i);
         if(dst_end == curr) return NULL;
-        *curr++ = low_byte(*i);
+        *curr++ = LOW_BYTE(*i);
     }
 
     return implace_crc(dst, curr, max_size);
@@ -166,7 +148,7 @@ char *request_wr_bytes(
     const char req_header[] =
     {
         slave_addr, FCODE_WR_BYTES,
-        high_byte(mem_addr), low_byte(mem_addr),
+        HIGH_BYTE(mem_addr), LOW_BYTE(mem_addr),
         count
     };
     char *curr = dst;
@@ -182,28 +164,18 @@ char *request_wr_bytes(
     return implace_crc(dst, curr, max_size);
 }
 
-int parse_reply_wr_bytes(
-    uint16_t *const mem_addr, uint8_t *const count,
-    const char *const begin, const char *const end)
+const modbus_rtu_wr_bytes_reply_t *
+parse_reply_wr_bytes(const char *const begin, const char *const end)
 {
-    if(!mem_addr || !count) return INVALID_PARAM;
-
     const size_t expected_size =
         sizeof(addr_t) + sizeof(fcode_t)
         + sizeof(uint16_t) /* mem addr */ + sizeof(uint8_t) /* count */
         + sizeof(crc_t);
 
-    if((size_t)(end - begin) != expected_size) return RTU_REPLY_INVALID_SIZE;
-    if(check_crc(begin, end)) return RTU_REPLY_INVALID_CRC;
+    if((size_t)(end - begin) != expected_size) return NULL;
+    if(check_crc(begin, end)) return NULL;
 
-    const char *data = begin + sizeof(addr_t) + sizeof(fcode_t);
-    const uint8_t rep_mem_addr_high = *data++;
-    const uint8_t rep_mem_addr_low = *data++;
-    const uint8_t rep_count = *data++;
-
-    *mem_addr = make_word(rep_mem_addr_high, rep_mem_addr_low);
-    *count = rep_count;
-    return 0;
+    return (const modbus_rtu_wr_bytes_reply_t *)begin;
 }
 
 char *request_rd_bytes(
@@ -217,7 +189,7 @@ char *request_rd_bytes(
     const char req[] =
     {
         slave_addr, FCODE_RD_BYTES,
-        high_byte(mem_addr), low_byte(mem_addr),
+        HIGH_BYTE(mem_addr), LOW_BYTE(mem_addr),
         count
     };
 
@@ -237,8 +209,7 @@ int check_crc(const char *const begin, const char *const end)
     const uint8_t crc_low = *(end - 2);
     const uint8_t crc_high = *(end - 1);
 
-    if(crc_low != low_byte(crc) || crc_high != high_byte(crc))
-        return RTU_REPLY_INVALID_CRC;
+    if(crc_low != crc.low || crc_high != crc.high) return RTU_REPLY_INVALID_CRC;
     return 0;
 }
 

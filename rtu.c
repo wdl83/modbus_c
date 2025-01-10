@@ -158,15 +158,13 @@ bool adu_check(state_t *state, const uint8_t *begin, const uint8_t *end)
 {
     if(ADU_MIN_SIZE > end - begin) return false;
 
-    const uint8_t crc_high = *(end - 1);
-    const uint8_t crc_low = *(end - 2);
-    const crc_t crc_received = crc_high << 8 | crc_low;
+    const crc_t crc_received = {.low = *(end - 2), .high = *(end - 1)};
     const crc_t crc_calculated = modbus_rtu_calc_crc(begin, end - 2);
 
-    if(crc_received != crc_calculated)
+    if(CRC_TO_WORD(crc_received) != CRC_TO_WORD(crc_calculated))
     {
-        RTU_LOG_DBG16("rCRC", crc_received);
-        RTU_LOG_DBG16("cCRC", crc_calculated);
+        RTU_LOG_DBG16("rCRC", CRC_TO_WORD(crc_received));
+        RTU_LOG_DBG16("cCRC", CRC_TO_WORD(crc_calculated));
         ++state->stats.crc_err_cntr;
         return false;
     }
@@ -201,11 +199,9 @@ void adu_process(state_t *state)
         if(state->txbuf_curr != dst_begin)
         {
             const crc_t crc = modbus_rtu_calc_crc(dst_begin, state->txbuf_curr);
-            const uint8_t crc_high = (crc & UINT16_C(0xFF00)) >> 8;
-            const uint8_t crc_low = crc & UINT16_C(0x00FF);
 
-            *(state->txbuf_curr) = (uint8_t)crc_low;
-            *(++state->txbuf_curr) = (uint8_t)crc_high;
+            *(state->txbuf_curr) = crc.low;
+            *(++state->txbuf_curr) = crc.high;
             ++(state->txbuf_curr);
             RTU_STATE_UPDATE(state->status, RTU_STATE_BUSY);
             state->serial_send(state, serial_sent_cb);

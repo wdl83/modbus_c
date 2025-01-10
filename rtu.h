@@ -64,6 +64,10 @@
  *     ... [N0, N1, ... Ni, <- max 1.5t -> Nj, ... Nn] ...
  * */
 
+#define MAKE_WORD(low, high)         ((uint16_t)((high) << 8) | (uint16_t)(low))
+#define LOW_BYTE(word)                       ((uint16_t)(word) & UINT16_C(0xFF))
+#define HIGH_BYTE(word)                                  ((uint16_t)(word) >> 8)
+
 
 /* characters per second */
 #define CALC_CPS(BR) ((BR) / 10)
@@ -172,7 +176,35 @@
 
 typedef uint8_t modbus_rtu_addr_t;
 typedef uint8_t modbus_rtu_fcode_t;
-typedef uint16_t modbus_rtu_crc_t;
+
+typedef struct
+{
+    /* source:
+     * "MODBUS over serial line specification and implementation guide V1.02"
+     * "2.5.1.2 CRC Checking" page 14.
+     * "The CRC field is appended to the message as the last field in the message.
+     * When this is done, the low–order byte of the field is appended first,
+     * followed by the high–order byte.
+     * The CRC high–order byte is the last byte to be sent in the message." */
+    uint8_t low;
+    uint8_t high;
+} modbus_rtu_crc_t;
+
+#define CRC_TO_WORD(crc)                            MAKE_WORD(crc.low, crc.high)
+
+typedef struct
+{
+    /* source:
+     * "MODBUS APPLICATION PROTOCOL SPECIFICATION V1.1b3"
+     * FCODEs: 0x01, 0x02, 0x03, 0x04, 0x05, 0x06
+     * address word (2x bytes) transmission order:  high byte then low byte.
+     */
+    uint8_t high;
+    uint8_t low;
+} modbus_rtu_mem_addr_t;
+
+#define MEM_ADDR_TO_WORD(mem_addr)        MAKE_WORD(mem_addr.low, mem_addr.high)
+
 typedef uint8_t modbus_rtu_ecode_t; /* exception */
 
 #define BROADCAST_ADDR 0

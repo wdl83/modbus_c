@@ -63,23 +63,25 @@ const uint8_t lcrc16[] = {
     0x43, 0x83, 0x41, 0x81, 0x80, 0x40
 };
 
-uint16_t crc16_update(uint16_t crc, uint8_t data)
+modbus_rtu_crc_t crc16_update(const modbus_rtu_crc_t crc, const uint8_t data)
 {
     /* source: AVR GCC crc16 headers
      * Polynomial: x^16 + x^15 + x^2 + 1 (0xa001) */
-    crc ^= (uint16_t)data;
+    uint16_t crc16 = CRC_TO_WORD(crc);
+    crc16 ^= (uint16_t)data;
 
     for(int8_t i = 0; i < 8; ++i)
     {
-        crc = crc & 1 ?  (crc >> 1) ^ UINT16_C(0xA001) : crc >> 1;
+        crc16 = crc16 & UINT16_C(1) ? (crc16 >> 1) ^ UINT16_C(0xA001) : crc16 >> 1;
     }
 
-    return crc;
+    return (modbus_rtu_crc_t){.low = LOW_BYTE(crc16), .high = HIGH_BYTE(crc16)};
 }
 
-uint16_t modbus_rtu_calc_crc(const uint8_t *begin, const uint8_t *end)
+modbus_rtu_crc_t modbus_rtu_calc_crc(const uint8_t *begin, const uint8_t *end)
 {
-    if(!begin || !end) return UINT16_C(0xFFFF);
+    if(!begin || !end)
+        return (modbus_rtu_crc_t){.low = UINT8_C(0xFF), .high = UINT8_C(0xFF)};
 
     uint8_t low = UINT8_C(0xFF);
     uint8_t high = UINT8_C(0xFF);
@@ -92,6 +94,5 @@ uint16_t modbus_rtu_calc_crc(const uint8_t *begin, const uint8_t *end)
         ++begin;
     }
 
-    uint16_t value = (uint16_t)high << 8 | (uint16_t)low;
-    return value;
+    return (modbus_rtu_crc_t){.low = low, .high = high};
 }

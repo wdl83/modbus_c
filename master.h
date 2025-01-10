@@ -45,7 +45,6 @@ typedef struct __attribute__((packed))
     modbus_rtu_fcode_t fcode;
     modbus_rtu_mem_addr_t mem_addr;
     uint8_t count;
-    uint8_t data[];
 } modbus_rtu_wr_bytes_request_header_t;
 
 char *request_wr_bytes(
@@ -87,7 +86,6 @@ typedef struct __attribute__((packed))
     modbus_rtu_fcode_t fcode;
     modbus_rtu_mem_addr_t mem_addr;
     uint8_t count;
-    uint8_t data[];
 } modbus_rtu_rd_bytes_reply_header_t;
 
 const modbus_rtu_rd_bytes_reply_header_t *parse_reply_rd_bytes(

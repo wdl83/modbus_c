@@ -47,8 +47,7 @@ typedef struct __attribute__((packed))
 } modbus_rtu_wr_bytes_request_header_t;
 
 /* usage:
- *    struct
- *    {
+ *    struct {
  *        modbus_rtu_wr_bytes_request_header_t header;
  *        char data[DATA_SIZE];
  *        modbus_rtu_crc_t crc;

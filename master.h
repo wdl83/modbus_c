@@ -60,10 +60,23 @@ char *request_wr_coil(
 
 /* FCODE_WR_REGISTER ---------------------------------------------------------*/
 
+typedef struct __attribute__((packed))
+{
+    modbus_rtu_addr_t addr;
+    modbus_rtu_fcode_t fcode;
+    modbus_rtu_mem_addr_t mem_addr;
+    modbus_rtu_data16_t data;
+    modbus_rtu_crc_t crc;
+} modbus_rtu_wr_register_t;
+
+typedef modbus_rtu_wr_register_t modbus_rtu_wr_register_request_t;
+
 char *request_wr_register(
     modbus_rtu_addr_t,
     modbus_rtu_mem_addr_t, uint16_t data,
     char *dst, size_t max_size);
+
+typedef modbus_rtu_wr_register_t modbus_rtu_wr_register_reply_t;
 
 /* FCODE_WR_REGISTERs --------------------------------------------------------*/
 

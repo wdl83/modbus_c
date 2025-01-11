@@ -11,9 +11,21 @@
 
 typedef struct rtu_memory_impl
 {
-    rtu_memory_header_t header;
+    /* begin: private memory (not accessible via rtu_memory_t *) */
     modbus_rtu_addr_t self_addr;
-    char tlog[TLOG_SIZE];
+    /* end: private memory */
+    rtu_memory_header_t header;
+    union
+    {
+        struct
+        {
+            char tlog[TLOG_SIZE];
+        };
+        struct
+        {
+            uint8_t bytes[RTU_MEMORY_SIZE];
+        };
+    };
 } rtu_memory_impl_t;
 
 

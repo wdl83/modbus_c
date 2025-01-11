@@ -12,8 +12,8 @@
 #include "util.h"
 
 
-#ifndef RTU_ADDR_BASE
-#error "Please define RTU_ADDR_BASE"
+#if !defined(RTU_MEMORY_ADDR) || !defined(RTU_MEMORY_SIZE)
+#error "Please define RTU_MEMORY_ADDR and RTU_MEMORY_SIZE"
 #endif
 
 void rtu_memory_impl_clear(rtu_memory_impl_t *impl)
@@ -23,11 +23,8 @@ void rtu_memory_impl_clear(rtu_memory_impl_t *impl)
 
 void rtu_memory_impl_init(rtu_memory_impl_t *impl)
 {
-    impl->header.addr_begin = RTU_ADDR_BASE;
-    impl->header.addr_end =
-        RTU_ADDR_BASE
-        + sizeof(rtu_memory_impl_t)
-        - sizeof(rtu_memory_header_t);
+    impl->header.addr_begin = RTU_MEMORY_ADDR;
+    impl->header.addr_end = RTU_MEMORY_ADDR + RTU_MEMORY_SIZE;
 }
 
 uint8_t *rtu_memory_impl_pdu_cb(

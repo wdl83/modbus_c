@@ -3,8 +3,6 @@ include linux/Makefile.defs
 TARGET = tty_dev_tests
 
 CFLAGS += \
-	-DRTU_ADDR_BASE=0x1000 \
-	-DTLOG_SIZE=4096 \
 	-DTTY_ASYNC_LOW_LATENCY \
 	-I . \
 	-I linux \

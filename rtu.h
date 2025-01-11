@@ -191,21 +191,32 @@ typedef struct
 } modbus_rtu_crc_t;
 
 #define CRC_TO_WORD(crc)                            MAKE_WORD(crc.low, crc.high)
+#define WORD_TO_CRC(word) \
+              (modbus_rtu_crc_t){.low = LOW_BYTE(word), .high = HIGH_BYTE(word)}
 
 typedef struct
 {
-    /* source:
-     * "MODBUS APPLICATION PROTOCOL SPECIFICATION V1.1b3"
-     * FCODEs: 0x01, 0x02, 0x03, 0x04, 0x05, 0x06
-     * address word (2x bytes) transmission order:  high byte then low byte.
-     */
     uint8_t high;
     uint8_t low;
-} modbus_rtu_mem_addr_t;
+} modbus_rtu_data16_t;
 
-#define MEM_ADDR_TO_WORD(mem_addr)        MAKE_WORD(mem_addr.low, mem_addr.high)
-#define WORD_TO_MEM_ADDR(word) \
-         (modbus_rtu_mem_addr_t){.high = HIGH_BYTE(word), .low = LOW_BYTE(word)}
+#define DATA16_TO_WORD(data16)                MAKE_WORD(data16.low, data16.high)
+#define WORD_TO_DATA16(word) \
+           (modbus_rtu_data16_t){.high = HIGH_BYTE(word), .low = LOW_BYTE(word)}
+
+/* source:
+ * "MODBUS APPLICATION PROTOCOL SPECIFICATION V1.1b3"
+ * FCODEs: 0x01, 0x02, 0x03, 0x04, 0x05, 0x06
+ * address word (2x bytes) transmission order:  high byte then low byte.  */
+typedef modbus_rtu_data16_t modbus_rtu_mem_addr_t;
+
+#define MEM_ADDR_TO_WORD(mem_addr)                      DATA16_TO_WORD(mem_addr)
+#define WORD_TO_MEM_ADDR(word)                              WORD_TO_DATA16(word)
+
+typedef modbus_rtu_data16_t modbus_rtu_count_t;
+
+#define COUNT_TO_WORD(count)                               DATA16_TO_WORD(count)
+#define WORD_TO_COUNT(word)                                 WORD_TO_DATA16(word)
 
 typedef uint8_t modbus_rtu_ecode_t; /* exception */
 

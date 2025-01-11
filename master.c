@@ -32,6 +32,28 @@ void *implace_crc(void *const adu, size_t adu_size)
     return implace_crc_impl(begin, end - sizeof(crc_t), adu_size);
 }
 
+const char *valid_crc_impl(const char *const begin, const char *const end)
+{
+    if((size_t)(end - begin) <= sizeof(crc_t)) return NULL;
+
+    const uint8_t *const payload_begin = (const uint8_t *)begin;
+    const uint8_t *const payload_end = (const uint8_t *)(end - sizeof(crc_t));
+
+    const crc_t crc = modbus_rtu_calc_crc(payload_begin, payload_end);
+    const uint8_t crc_low = *(end - 2);
+    const uint8_t crc_high = *(end - 1);
+
+    if(crc_low != crc.low || crc_high != crc.high) return NULL;
+    return end - 2;
+}
+
+const void *valid_crc(const void *const adu, const size_t adu_size)
+{
+    char *begin = (char *)adu;
+    char *end = begin + adu_size;
+    return valid_crc_impl(begin, end);
+}
+
 char *request_rd_coils(
     const addr_t slave_addr,
     const modbus_rtu_mem_addr_t mem_addr, const uint8_t count,
@@ -181,7 +203,7 @@ parse_reply_wr_bytes(const char *const begin, const char *const end)
         + sizeof(crc_t);
 
     if(size != expected_size) return NULL;
-    if(crc_mismatch(begin, end)) return NULL;
+    if(!valid_crc(begin, size)) return NULL;
 
     return (const modbus_rtu_wr_bytes_reply_t *)begin;
 }
@@ -219,31 +241,17 @@ parse_reply_rd_bytes(const char *const begin, const char *const end)
         (const modbus_rtu_rd_bytes_reply_header_t *)begin;
 
     if(expected_min_size + header->count != size) return NULL;
-    if(crc_mismatch(begin, end)) return NULL;
+    if(!valid_crc(begin, size)) return NULL;
     return header;
-}
-
-int crc_mismatch(const char *const begin, const char *const end)
-{
-    if((size_t)(end - begin) <= sizeof(crc_t)) return RTU_REPLY_INVALID_SIZE;
-
-    const uint8_t *const payload_begin = (const uint8_t *)begin;
-    const uint8_t *const payload_end = (const uint8_t *)(end - sizeof(crc_t));
-
-    const crc_t crc = modbus_rtu_calc_crc(payload_begin, payload_end);
-    const uint8_t crc_low = *(end - 2);
-    const uint8_t crc_high = *(end - 1);
-
-    if(crc_low != crc.low || crc_high != crc.high) return RTU_REPLY_INVALID_CRC;
-    return 0;
 }
 
 const char *find_ecode(const char *begin, const char *end)
 {
+    const size_t size = end - begin;
     const size_t expected_size =
         sizeof(addr_t) + sizeof(fcode_t) + sizeof(ecode_t) + sizeof(crc_t);
 
-    if((size_t)(end - begin) != expected_size) return NULL;
-    if(crc_mismatch(begin, end)) return NULL;
+    if(size != expected_size) return NULL;
+    if(!valid_crc(begin, size)) return NULL;
     return begin + sizeof(addr_t) + sizeof(fcode_t);
 }

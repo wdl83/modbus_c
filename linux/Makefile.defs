@@ -28,3 +28,12 @@ else
 	CFLAGS +=  \
 		-DNDEBUG
 endif
+
+ifdef COVERAGE
+	CFLAGS += \
+		-fprofile-arcs \
+		-ftest-coverage
+	LDFLAGS += \
+		-fprofile-arcs \
+		-ftest-coverage
+endif

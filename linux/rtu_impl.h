@@ -3,7 +3,6 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "check.h"
 #include "rtu.h"
 #include "rtu_memory.h"
 #include "tty.h"
@@ -44,6 +43,7 @@ int calc_1t5_us(speed_t rate);
 int calc_3t5_us(speed_t rate);
 // time required to transfer payload (size)
 int calc_tmin_ms(speed_t, size_t size);
+int calc_tmax_ms(speed_t, size_t size);
 
 void modbus_rtu_run(
     tty_dev_t *dev,

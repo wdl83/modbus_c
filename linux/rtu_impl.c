@@ -121,6 +121,11 @@ int calc_tmin_ms(speed_t rate, size_t size)
     return (size * 11000) / bps;
 }
 
+int calc_tmax_ms(speed_t rate, size_t size)
+{
+    return 10 + calc_tmin_ms(rate, size);
+}
+
 static
 void timer_start_1t5(modbus_rtu_state_t *state)
 {
@@ -181,7 +186,7 @@ void send_impl(modbus_rtu_state_t *state, modbus_rtu_serial_sent_cb_t sent_cb)
     const char *const begin = (const char *)state->txbuf;
     const char *const end = (const char *)state->txbuf_curr;
     const ssize_t size = (size_t)(end - begin);
-    const int timeout = calc_tmin_ms(impl->rate, size);
+    const int timeout = calc_tmax_ms(impl->rate, size);
     const char *const curr = tty_write( impl->dev, begin, end, timeout, NULL);
 
     tty_logD(impl->dev);

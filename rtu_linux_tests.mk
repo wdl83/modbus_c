@@ -19,6 +19,7 @@ CSRCS = \
 	linux/crc.c \
 	linux/gnu.c \
 	linux/log.c \
+	linux/master_impl.c \
 	linux/pipe.c \
 	linux/rtu_impl.c \
 	linux/rtu_log_impl.c \

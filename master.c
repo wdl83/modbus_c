@@ -54,7 +54,7 @@ const void *valid_crc(const void *const adu, const size_t adu_size)
     return valid_crc_impl(begin, end);
 }
 
-char *request_rd_coils(
+char *make_request_rd_coils(
     const addr_t slave_addr,
     const modbus_rtu_mem_addr_t mem_addr, const uint8_t count,
     char *const dst, const size_t max_size)
@@ -74,7 +74,7 @@ char *request_rd_coils(
     return implace_crc_impl(dst, dst + sizeof(req), max_size);
 }
 
-char *request_rd_holding_registers(
+char *make_request_rd_holding_registers(
     const addr_t slave_addr,
     const modbus_rtu_mem_addr_t mem_addr, const uint8_t count,
     char *const dst, const size_t max_size)
@@ -94,7 +94,7 @@ char *request_rd_holding_registers(
     return implace_crc_impl(dst, dst + sizeof(req), max_size);
 }
 
-char *request_wr_coil(
+char *make_request_wr_coil(
     const addr_t slave_addr,
     const modbus_rtu_mem_addr_t mem_addr, const uint8_t data,
     char *const dst, const size_t max_size)
@@ -114,7 +114,7 @@ char *request_wr_coil(
     return implace_crc_impl(dst, dst + sizeof(req), max_size);
 }
 
-char *request_wr_register(
+char *make_request_wr_register(
     const addr_t slave_addr,
     const modbus_rtu_mem_addr_t mem_addr, const uint16_t data,
     char *const dst, const size_t max_size)
@@ -131,7 +131,7 @@ char *request_wr_register(
     return implace_crc_impl(dst, dst + sizeof(req), max_size);
 }
 
-char *request_wr_registers(
+char *make_request_wr_registers(
     addr_t slave_addr,
     modbus_rtu_mem_addr_t mem_addr, const uint16_t *const data, const uint8_t count,
     char *const dst, const size_t max_size)
@@ -166,7 +166,7 @@ char *request_wr_registers(
     return implace_crc_impl(dst, curr, max_size);
 }
 
-char *request_wr_bytes(
+char *make_request_wr_bytes(
     addr_t slave_addr, modbus_rtu_mem_addr_t mem_addr,
     const uint8_t *const data, const uint8_t count,
     char *const dst, const size_t max_size)
@@ -194,21 +194,19 @@ char *request_wr_bytes(
 }
 
 const modbus_rtu_wr_bytes_reply_t *
-parse_reply_wr_bytes(const char *const begin, const char *const end)
+parse_reply_wr_bytes(const void *const adu, const size_t adu_size)
 {
-    const size_t size = end - begin;
     const size_t expected_size =
         sizeof(addr_t) + sizeof(fcode_t)
         + sizeof(uint16_t) /* mem addr */ + sizeof(uint8_t) /* count */
         + sizeof(crc_t);
 
-    if(size != expected_size) return NULL;
-    if(!valid_crc(begin, size)) return NULL;
-
-    return (const modbus_rtu_wr_bytes_reply_t *)begin;
+    if(expected_size != adu_size) return NULL;
+    if(!valid_crc(adu, adu_size)) return NULL;
+    return adu;
 }
 
-char *request_rd_bytes(
+char *make_request_rd_bytes(
     const addr_t slave_addr,
     const modbus_rtu_mem_addr_t mem_addr, const uint8_t count,
     char *const dst, const size_t max_size)
@@ -228,21 +226,19 @@ char *request_rd_bytes(
     return implace_crc_impl(dst, dst + sizeof(req), max_size);
 }
 
-const modbus_rtu_rd_bytes_reply_header_t *
-parse_reply_rd_bytes(const char *const begin, const char *const end)
+const modbus_rtu_rd_bytes_reply_t *
+parse_reply_rd_bytes(const void *adu, const size_t adu_size)
 {
-    const size_t size = end - begin;
     const size_t expected_min_size =
         sizeof(modbus_rtu_rd_bytes_reply_header_t) + sizeof(crc_t);
 
-    if(expected_min_size > size) return NULL;
+    if(expected_min_size > adu_size) return NULL;
 
-    const modbus_rtu_rd_bytes_reply_header_t *header =
-        (const modbus_rtu_rd_bytes_reply_header_t *)begin;
+    const modbus_rtu_rd_bytes_reply_t *reply = adu;
 
-    if(expected_min_size + header->count != size) return NULL;
-    if(!valid_crc(begin, size)) return NULL;
-    return header;
+    if(expected_min_size + reply->header.count != adu_size) return NULL;
+    if(!valid_crc(adu, adu_size)) return NULL;
+    return reply;
 }
 
 const char *find_ecode(const char *begin, const char *end)

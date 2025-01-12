@@ -5,6 +5,12 @@
 
 #include "rtu.h"
 
+
+/* API:
+ * make_request_[function code] return
+ *     success: pointer to last byte written + 1
+ *        fail: NULL
+ * */
 #define INVALID_PARAM                                                       -255
 #define RTU_REPLY_INVALID_SIZE                                                -1
 #define RTU_REPLY_INVALID_CRC                                                  1
@@ -30,7 +36,7 @@ typedef struct __attribute__((packed))
 
 typedef modbus_rtu_mem_access_request_t modbus_rtu_rd_coils_request_t;
 
-char *request_rd_coils(
+char *make_request_rd_coils(
     modbus_rtu_addr_t,
     modbus_rtu_mem_addr_t, uint8_t count,
     char *dst, size_t max_size);
@@ -39,7 +45,7 @@ char *request_rd_coils(
 
 typedef modbus_rtu_mem_access_request_t modbus_rtu_rd_holding_registers_request_t;
 
-char *request_rd_holding_registers(
+char *make_request_rd_holding_registers(
     modbus_rtu_addr_t,
     modbus_rtu_mem_addr_t, uint8_t count,
     char *dst, size_t max_size);
@@ -51,9 +57,15 @@ typedef struct __attribute__((packed))
     uint8_t count;
 } modbus_rtu_rd_holding_registers_reply_header_t;
 
+typedef struct __attribute__((packed))
+{
+    modbus_rtu_rd_holding_registers_reply_header_t header;
+    modbus_rtu_data16_t data[];
+} modbus_rtu_rd_holding_registers_reply_t;
+
 /* FCODE_WR_COIL -------------------------------------------------------------*/
 
-char *request_wr_coil(
+char *make_request_wr_coil(
     modbus_rtu_addr_t,
     modbus_rtu_mem_addr_t, uint8_t data,
     char *dst, size_t max_size);
@@ -71,7 +83,7 @@ typedef struct __attribute__((packed))
 
 typedef modbus_rtu_wr_register_t modbus_rtu_wr_register_request_t;
 
-char *request_wr_register(
+char *make_request_wr_register(
     modbus_rtu_addr_t,
     modbus_rtu_mem_addr_t, uint16_t data,
     char *dst, size_t max_size);
@@ -80,7 +92,7 @@ typedef modbus_rtu_wr_register_t modbus_rtu_wr_register_reply_t;
 
 /* FCODE_WR_REGISTERs --------------------------------------------------------*/
 
-char *request_wr_registers(
+char *make_request_wr_registers(
     modbus_rtu_addr_t,
     modbus_rtu_mem_addr_t, const uint16_t *data, uint8_t count,
     char *dst, size_t max_size);
@@ -95,7 +107,7 @@ typedef struct __attribute__((packed))
     uint8_t count;
 } modbus_rtu_wr_bytes_request_header_t;
 
-char *request_wr_bytes(
+char *make_request_wr_bytes(
     modbus_rtu_addr_t,
     modbus_rtu_mem_addr_t, const uint8_t *data, uint8_t count,
     char *dst, size_t max_size);
@@ -110,7 +122,7 @@ typedef struct __attribute__((packed))
 } modbus_rtu_wr_bytes_reply_t;
 
 const modbus_rtu_wr_bytes_reply_t *parse_reply_wr_bytes(
-    const char *begin, const char *end);
+    const void *adu, size_t adu_size);
 
 /* FCODE_RD_BYTES ------------------------------------------------------------*/
 
@@ -123,7 +135,7 @@ typedef struct __attribute__((packed))
     modbus_rtu_crc_t crc;
 } modbus_rtu_rd_bytes_request_t;
 
-char *request_rd_bytes(
+char *make_request_rd_bytes(
     modbus_rtu_addr_t,
     modbus_rtu_mem_addr_t, uint8_t count,
     char *dst, size_t max_size);
@@ -136,8 +148,14 @@ typedef struct __attribute__((packed))
     uint8_t count;
 } modbus_rtu_rd_bytes_reply_header_t;
 
-const modbus_rtu_rd_bytes_reply_header_t *parse_reply_rd_bytes(
-    const char *begin, const char *end);
+typedef struct __attribute__((packed))
+{
+    modbus_rtu_rd_bytes_reply_header_t header;
+    uint8_t bytes[];
+} modbus_rtu_rd_bytes_reply_t;
+
+const modbus_rtu_rd_bytes_reply_t *parse_reply_rd_bytes(
+    const void *adu, size_t adu_size);
 
 /* MISC ----------------------------------------------------------------------*/
 

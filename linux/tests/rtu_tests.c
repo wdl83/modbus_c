@@ -9,6 +9,7 @@
 #include "check.h"
 #include "log.h"
 #include "master.h"
+#include "master_impl.h"
 #include "pipe.h"
 #include "rtu_impl.h"
 #include "tty.h"
@@ -22,8 +23,11 @@
 
 typedef struct
 {
-    pthread_mutex_t mutex;
-    pthread_cond_t cond;
+    struct {
+        pthread_mutex_t mutex;
+        pthread_cond_t cond;
+        int rtu_started;
+    } sync;
     tty_dev_t *dev;
     speed_t rate;
     modbus_rtu_addr_t self_addr;
@@ -46,15 +50,19 @@ struct TestFixture
 static
 char *master_read(struct TestFixture *tf, char *begin, const char *end)
 {
-    const int tmax_ms = 10 + calc_tmin_ms(tf->rtu_config.rate, (size_t)(end - begin));
-    return tty_read(&tf->master, begin, end, tmax_ms, NULL);
+    const int tmax_ms = calc_tmax_ms(tf->rtu_config.rate, (size_t)(end - begin));
+    char *const curr = tty_read(&tf->master, begin, end, tmax_ms, NULL);
+    tty_logD(&tf->master);
+    return curr;
 }
 
 static
 const char *master_write(struct TestFixture *tf, const char *begin, const char *end)
 {
-    const int tmax_ms = 10 + calc_tmin_ms(tf->rtu_config.rate, (size_t)(end - begin));
-    return tty_write(&tf->master, begin, end, tmax_ms, NULL);
+    const int tmax_ms = calc_tmax_ms(tf->rtu_config.rate, (size_t)(end - begin));
+    const char *const curr = tty_write(&tf->master, begin, end, tmax_ms, NULL);
+    tty_logD(&tf->master);
+    return curr;
 }
 
 static
@@ -75,7 +83,10 @@ void *async_run_rtu(void *user_data)
     for(uint8_t pattern = 0; mem_begin != mem_end; ++pattern, ++mem_begin)
         *mem_begin = pattern;
 
-    pthread_cond_signal(&config->cond);
+    pthread_mutex_lock(&config->sync.mutex);
+    config->sync.rtu_started = 1;
+    pthread_mutex_unlock(&config->sync.mutex);
+    pthread_cond_signal(&config->sync.cond);
 
     modbus_rtu_run(
         config->dev,
@@ -146,14 +157,16 @@ UTEST_I_SETUP(TestFixture)
     tf->rtu_config.event.fd = tf->channel.reader;
     tf->rtu_config.event.events = POLLIN;
 
-    pthread_mutex_init(&tf->rtu_config.mutex, NULL);
-    pthread_mutex_lock(&tf->rtu_config.mutex);
+    pthread_mutex_init(&tf->rtu_config.sync.mutex, NULL);
+    pthread_mutex_lock(&tf->rtu_config.sync.mutex);
 
     CHECK_ERRNO(0 == pthread_create(&tf->runner, NULL, async_run_rtu, &tf->rtu_config));
 
     // wait for RTU thread to start
-    pthread_cond_wait(&tf->rtu_config.cond, &tf->rtu_config.mutex);
-    pthread_mutex_unlock(&tf->rtu_config.mutex);
+    while(!tf->rtu_config.sync.rtu_started)
+        pthread_cond_wait(&tf->rtu_config.sync.cond, &tf->rtu_config.sync.mutex);
+
+    pthread_mutex_unlock(&tf->rtu_config.sync.mutex);
 
     // time required for RTU to transition from INIT to IDLE state (at least 10ms)
     usleep(max(100000, tf->rtu_config.timeout_3t5_us));
@@ -182,43 +195,28 @@ UTEST_I(TestFixture, read_bytes_21, 7)
         char req[ADU_CAPACITY];
         memset(req, 0, sizeof(req));
         const char *const req_end =
-            request_rd_bytes(
+            make_request_rd_bytes(
                 tf->rtu_config.self_addr,
                 WORD_TO_MEM_ADDR(RTU_MEMORY_ADDR), num,
                 req, sizeof(req));
-        ASSERT_NE(NULL, req_end);
+        ASSERT_TRUE(req_end);
         EXPECT_EQ(req_end, master_write(tf,req, req_end));
-        tty_logD(&tf->master);
     }
 
     {
-        char rep[ADU_CAPACITY];
-        memset(rep, 0, sizeof(rep));
-        const char *const rep_end = master_read(tf, rep, rep + length_of(rep));
-        EXPECT_NE(rep, rep_end);
-        tty_logD(&tf->master);
+        char rx_buf[ADU_CAPACITY];
+        memset(rx_buf, 0, sizeof(rx_buf));
+        const char *const rx_buf_end = master_read(tf, rx_buf, rx_buf + length_of(rx_buf));
+        const modbus_rtu_rd_bytes_reply_t *rep = parse_reply_rd_bytes(rx_buf, rx_buf_end - rx_buf);
 
-        const modbus_rtu_rd_bytes_reply_header_t *rep_s =
-            parse_reply_rd_bytes(rep, rep_end);
+        ASSERT_TRUE(rep);
+        EXPECT_EQ(rep->header.addr, tf->rtu_config.self_addr);
+        EXPECT_EQ(rep->header.fcode, FCODE_RD_BYTES);
+        EXPECT_EQ(MEM_ADDR_TO_WORD(rep->header.mem_addr), RTU_MEMORY_ADDR);
+        EXPECT_EQ(rep->header.count, num);
 
-        EXPECT_NE(NULL, rep_s);
-        EXPECT_EQ(rep_s->addr, tf->rtu_config.self_addr);
-        EXPECT_EQ(rep_s->fcode, FCODE_RD_BYTES);
-        EXPECT_EQ(MEM_ADDR_TO_WORD(rep_s->mem_addr), RTU_MEMORY_ADDR);
-        EXPECT_EQ(rep_s->count, num);
-
-        struct __attribute__((packed)) {
-            modbus_rtu_rd_bytes_reply_header_t header;
-            uint8_t data[num];
-            modbus_rtu_crc_t crc;
-        } const *expected_rep = (const void *)rep;
-
-        ASSERT_EQ((size_t)(rep_end - rep), sizeof(*expected_rep));
-
-        for(size_t i = 0; i < sizeof(expected_rep->data); ++i)
-            EXPECT_EQ((uint8_t)i, expected_rep->data[i]);
-
-        EXPECT_TRUE(valid_crc(expected_rep, sizeof(*expected_rep)));
+        for(size_t i = 0; i < rep->header.count; ++i)
+            EXPECT_EQ((uint8_t)i, rep->bytes[i]);
     }
 }
 
@@ -233,34 +231,26 @@ UTEST_I(TestFixture, write_bytes_func_STR, 7)
         char req[ADU_CAPACITY];
         memset(req, 0, sizeof(req));
         const char *const req_end =
-            request_wr_bytes(
+            make_request_wr_bytes(
                 tf->rtu_config.self_addr,
                 WORD_TO_MEM_ADDR(RTU_MEMORY_ADDR),
                 (const uint8_t *)message, length_of(message),
                 req, sizeof(req));
-        ASSERT_NE(NULL, req_end);
+        ASSERT_TRUE(req_end);
         EXPECT_EQ(req_end, master_write(tf, req, req_end));
-        tty_logD(&tf->master);
     }
 
     {
-        char rep[ADU_CAPACITY];
-        memset(rep, 0, sizeof(rep));
-        const char *const rep_end = master_read(tf, rep, rep + length_of(rep));
-        EXPECT_NE(rep, rep_end);
-        tty_logD(&tf->master);
+        char rx_buf[ADU_CAPACITY];
+        memset(rx_buf, 0, sizeof(rx_buf));
+        const char *const rx_buf_end = master_read(tf, rx_buf, rx_buf + sizeof(rx_buf));
+        const modbus_rtu_wr_bytes_reply_t *rep = parse_reply_wr_bytes(rx_buf, rx_buf_end - rx_buf);
 
-        EXPECT_TRUE(valid_crc(rep, (size_t)(rep_end - rep)));
-        EXPECT_EQ(NULL, find_ecode(rep, rep_end));
-
-        const modbus_rtu_wr_bytes_reply_t *rep_s =
-            parse_reply_wr_bytes(rep, rep_end);
-
-        EXPECT_NE(NULL, rep_s);
-        EXPECT_EQ(rep_s->addr, tf->rtu_config.self_addr);
-        EXPECT_EQ(rep_s->fcode, FCODE_WR_BYTES);
-        EXPECT_EQ(MEM_ADDR_TO_WORD(rep_s->mem_addr), RTU_MEMORY_ADDR);
-        EXPECT_EQ(rep_s->count, length_of(message));
+        ASSERT_TRUE(rep);
+        EXPECT_EQ(rep->addr, tf->rtu_config.self_addr);
+        EXPECT_EQ(rep->fcode, FCODE_WR_BYTES);
+        EXPECT_EQ(MEM_ADDR_TO_WORD(rep->mem_addr), RTU_MEMORY_ADDR);
+        EXPECT_EQ(rep->count, length_of(message));
     }
 }
 
@@ -289,7 +279,6 @@ UTEST_I(TestFixture, write_bytes_struct_STR, 7)
         memcpy(req.data, message, sizeof(message));
         ASSERT_NE(NULL, implace_crc(&req, sizeof(req)));
         EXPECT_EQ(req_end, master_write(tf, req_begin, req_end));
-        tty_logD(&tf->master);
     }
 
     {
@@ -297,7 +286,6 @@ UTEST_I(TestFixture, write_bytes_struct_STR, 7)
         char *const rep_begin = (char *)&rep;
         const char *const rep_end = rep_begin + sizeof(rep);
         EXPECT_EQ(rep_end, master_read(tf, rep_begin, rep_end));
-        tty_logD(&tf->master);
         EXPECT_TRUE(valid_crc(&rep, sizeof(rep)));
         EXPECT_EQ(rep.addr, tf->rtu_config.self_addr);
         EXPECT_EQ(rep.fcode, FCODE_WR_BYTES);
@@ -336,7 +324,7 @@ UTEST(rtu_tests, wr_bytes_request)
     memset(reqB, 0, sizeof(reqB));
 
     const char *const reqB_end =
-        request_wr_bytes(
+        make_request_wr_bytes(
             0xAB,
             WORD_TO_MEM_ADDR(0x1234),
             (const uint8_t *)msg, length_of(msg),
@@ -368,7 +356,6 @@ UTEST_I(TestFixture, read_holding_registers_33, 7)
 
         ASSERT_NE(NULL, implace_crc(&req, sizeof(req)));
         EXPECT_EQ(req_end, master_write(tf, req_begin, req_end));
-        tty_logD(&tf->master);
     }
     {
         struct __attribute__((packed)) {
@@ -382,8 +369,6 @@ UTEST_I(TestFixture, read_holding_registers_33, 7)
         memset(&rep, 0, sizeof(rep));
         const char *const curr = master_read(tf, rep_begin, rep_end);
         EXPECT_EQ(curr, rep_end);
-        tty_logD(&tf->master);
-
         EXPECT_EQ(rep.header.addr, tf->rtu_config.self_addr);
         EXPECT_EQ(rep.header.fcode, FCODE_RD_HOLDING_REGISTERS);
         EXPECT_EQ(rep.header.count, num << 1); // byte count
@@ -419,7 +404,6 @@ UTEST_I(TestFixture, read_wr_register_0x00AB_offset_32, 7)
 
         ASSERT_NE(NULL, implace_crc(&req, sizeof(req)));
         EXPECT_EQ(req_end, master_write(tf, req_begin, req_end));
-        tty_logD(&tf->master);
     }
     {
         modbus_rtu_wr_register_reply_t rep;
@@ -429,8 +413,6 @@ UTEST_I(TestFixture, read_wr_register_0x00AB_offset_32, 7)
         memset(&rep, 0, sizeof(rep));
         const char *const curr = master_read(tf, rep_begin, rep_end);
         EXPECT_EQ(curr, rep_end);
-        tty_logD(&tf->master);
-
         EXPECT_EQ(rep.addr, tf->rtu_config.self_addr);
         EXPECT_EQ(rep.fcode, FCODE_WR_REGISTER);
         EXPECT_EQ(MEM_ADDR_TO_WORD(rep.mem_addr), RTU_MEMORY_ADDR + 32);
@@ -439,5 +421,41 @@ UTEST_I(TestFixture, read_wr_register_0x00AB_offset_32, 7)
         EXPECT_TRUE(valid_crc(&rep, sizeof(rep)));
     }
 }
+
+UTEST_I(TestFixture, master_read_write_bytes, 7)
+{
+    struct TestFixture *tf = utest_fixture;
+    ASSERT_TRUE(tf);
+
+    const uint8_t tx_buf[] = "read/write bytes with master_impl";
+
+    rtu_master_impl_t impl = {.dev = &tf->master, .rate = tf->rtu_config.rate};
+
+    const uint8_t *const tx_end =
+        rtu_master_write_bytes(
+            &impl,
+            tf->rtu_config.self_addr,
+            WORD_TO_MEM_ADDR(RTU_MEMORY_ADDR),
+            length_of(tx_buf), tx_buf);
+
+    EXPECT_EQ(tx_end, tx_buf + sizeof(tx_buf));
+
+    usleep(100000); // 10ms, for RTU to transition from BUSY to IDLE state
+
+    uint8_t rx_buf[sizeof(tx_buf)];
+
+    memset(rx_buf, 0, sizeof(rx_buf));
+
+    uint8_t *const rx_end =
+        rtu_master_read_bytes(
+            &impl,
+            tf->rtu_config.self_addr,
+            WORD_TO_MEM_ADDR(RTU_MEMORY_ADDR),
+            length_of(rx_buf), rx_buf);
+
+    EXPECT_EQ(rx_end, rx_buf + sizeof(rx_buf));
+    EXPECT_EQ(0, memcmp(rx_buf, tx_buf, sizeof(rx_buf)));
+}
+
 
 UTEST_MAIN();

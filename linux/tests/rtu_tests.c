@@ -273,7 +273,7 @@ UTEST_I(TestFixture, write_bytes_struct_STR, 7)
         struct __attribute__((packed)) {
             modbus_rtu_wr_bytes_request_header_t header;
             char data[sizeof(message)];
-            modbus_rtu_crc_t crc;
+            crc_t crc;
         } req = {
             .header = {
                 .addr = tf->rtu_config.self_addr,
@@ -312,7 +312,7 @@ UTEST(rtu_tests, wr_bytes_request)
     struct __attribute__((packed)) {
         modbus_rtu_wr_bytes_request_header_t header;
         char data[sizeof(msg)];
-        modbus_rtu_crc_t crc;
+        crc_t crc;
     } reqA = {
         .header = {
             .addr = 0xAB,
@@ -368,8 +368,8 @@ UTEST_I(TestFixture, read_holding_registers_33, 7)
     {
         struct __attribute__((packed)) {
             modbus_rtu_rd_holding_registers_reply_header_t header;
-            modbus_rtu_data16_t data[num];
-            modbus_rtu_crc_t crc;
+            data16_t data[num];
+            crc_t crc;
         } rep;
         char *const rep_begin = (char *)&rep;
         const char *const rep_end = rep_begin + sizeof(rep);
@@ -395,7 +395,7 @@ UTEST_I(TestFixture, read_holding_registers_33, 7)
     }
 }
 
-UTEST_I(TestFixture, read_wr_register_0x00AB_offset_32, 7)
+UTEST_I(TestFixture, read_wr_register_struct_0x00AB_offset_32, 7)
 {
     struct TestFixture *tf = utest_fixture;
     ASSERT_TRUE(tf);
@@ -427,6 +427,43 @@ UTEST_I(TestFixture, read_wr_register_0x00AB_offset_32, 7)
         EXPECT_EQ(UINT8_C(0), rep.data.high);
         EXPECT_EQ(UINT8_C(0xAB), rep.data.low);
         EXPECT_TRUE(valid_crc(&rep, sizeof(rep)));
+    }
+}
+
+UTEST_I(TestFixture, read_wr_register_func_0x00CD_offset_50, 7)
+{
+    struct TestFixture *tf = utest_fixture;
+    ASSERT_TRUE(tf);
+
+    {
+        char tx_buf[ADU_CAPACITY];
+
+        memset(&tx_buf, 0, sizeof(tx_buf));
+
+        const char *const tx_end =
+            make_request_wr_register(
+                tf->rtu_config.self_addr,
+                WORD_TO_MEM_ADDR(RTU_MEMORY_ADDR + 50),
+                (data16_t){.high = 0, .low = 0xCD},
+                tx_buf, sizeof(tx_buf));
+
+        EXPECT_EQ(tx_end, master_write(tf, tx_buf, tx_end));
+    }
+    {
+        char rx_buf[ADU_CAPACITY];
+
+        memset(&rx_buf, 0, sizeof(rx_buf));
+
+        const char *const curr = master_read(tf, rx_buf, rx_buf + length_of(rx_buf));
+        const modbus_rtu_wr_register_reply_t *rep =
+            parse_reply_wr_register(rx_buf, (size_t)(curr - rx_buf));
+
+        EXPECT_TRUE(rep);
+        EXPECT_EQ(rep->addr, tf->rtu_config.self_addr);
+        EXPECT_EQ(rep->fcode, FCODE_WR_REGISTER);
+        EXPECT_EQ(MEM_ADDR_TO_WORD(rep->mem_addr), RTU_MEMORY_ADDR + 50);
+        EXPECT_EQ(UINT8_C(0), rep->data.high);
+        EXPECT_EQ(UINT8_C(0xCD), rep->data.low);
     }
 }
 
@@ -508,6 +545,5 @@ UTEST_I(TestFixture, master_write_read_holding_registers, 7)
     EXPECT_EQ(rx_data_end, rx_data + length_of(rx_data));
     EXPECT_EQ(0, memcmp(tx_data, rx_data, sizeof(rx_data)));
 }
-
 
 UTEST_MAIN();

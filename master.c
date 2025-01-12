@@ -4,7 +4,6 @@
 #include "crc.h"
 #include "master.h"
 #include "rtu.h"
-#include "log.h"
 
 
 typedef modbus_rtu_addr_t addr_t;
@@ -137,19 +136,33 @@ char *make_request_wr_coil(
 
 char *make_request_wr_register(
     const addr_t slave_addr,
-    const mem_addr_t mem_addr, const uint16_t data,
+    const mem_addr_t mem_addr, const data16_t data,
     char *const dst, const size_t max_size)
 {
-    const char req[] =
+    if(sizeof(modbus_rtu_wr_register_request_t) > max_size) return NULL;
+
+    modbus_rtu_wr_register_request_t req =
     {
-        slave_addr, FCODE_WR_REGISTER,
-        mem_addr.high, mem_addr.low,
-        HIGH_BYTE(data), LOW_BYTE(data)
+        .addr = slave_addr,
+        .fcode = FCODE_WR_REGISTER,
+        .mem_addr = mem_addr,
+        .data = data
     };
 
-    if(sizeof(req) > max_size) return NULL;
-    memcpy(dst, req, sizeof(req));
-    return implace_crc_impl(dst, dst + sizeof(req), max_size);
+    if(!implace_crc(&req, sizeof(req))) return NULL;
+    memcpy(dst, &req, sizeof(req));
+    return dst + sizeof(req);
+}
+
+const modbus_rtu_wr_register_reply_t *parse_reply_wr_register(
+    const void *adu, size_t adu_size)
+{
+    if(sizeof(modbus_rtu_wr_register_reply_t) != adu_size) return NULL;
+
+    const modbus_rtu_wr_register_reply_t *reply = adu;
+
+    if(!valid_crc(adu, adu_size)) return NULL;
+    return reply;
 }
 
 char *make_request_wr_registers(
@@ -167,7 +180,7 @@ char *make_request_wr_registers(
 
     if(expected_size > max_size) return NULL;
 
-    modbus_rtu_wr_registers_request_header_t req_header =
+    const modbus_rtu_wr_registers_request_header_t req_header =
     {
         .addr = slave_addr,
         .fcode = FCODE_WR_REGISTERS,
@@ -190,8 +203,7 @@ parse_reply_wr_registers(const void *const adu, const size_t adu_size)
 {
     const size_t expected_size =
         sizeof(addr_t) + sizeof(fcode_t)
-        + sizeof(mem_addr_t) + sizeof(count_t)
-        + sizeof(crc_t);
+        + sizeof(mem_addr_t) + sizeof(count_t) + sizeof(crc_t);
 
     if(expected_size != adu_size) return NULL;
     if(!valid_crc(adu, adu_size)) return NULL;
@@ -206,20 +218,23 @@ char *make_request_wr_bytes(
     if(!dst || !data) return NULL;
     if(UINT8_C(249) < count) return NULL;
 
-    const char req_header[] =
+    const size_t expected_size =
+        sizeof(modbus_rtu_wr_bytes_request_header_t) + count + sizeof(crc_t);
+
+    if(expected_size > max_size) return NULL;
+
+    const modbus_rtu_wr_bytes_request_header_t req_header =
     {
-        slave_addr, FCODE_WR_BYTES,
-        mem_addr.high, mem_addr.low,
-        count
+        .addr = slave_addr,
+        .fcode = FCODE_WR_BYTES,
+        .mem_addr = mem_addr,
+        .count = count
     };
+
     char *curr = dst;
-    const char *const dst_end = dst + max_size;
 
-    if(sizeof(req_header) > (size_t)(dst_end - curr)) return NULL;
-    memcpy(curr, req_header, sizeof(req_header));
+    memcpy(curr, &req_header, sizeof(req_header));
     curr += sizeof(req_header);
-
-    if(count > (size_t)(dst_end - curr)) return NULL;
     memcpy(curr, data, count);
     curr += count;
     return implace_crc_impl(dst, curr, max_size);
@@ -230,8 +245,7 @@ parse_reply_wr_bytes(const void *const adu, const size_t adu_size)
 {
     const size_t expected_size =
         sizeof(addr_t) + sizeof(fcode_t)
-        + sizeof(mem_addr_t) + sizeof(uint8_t) /* count */
-        + sizeof(crc_t);
+        + sizeof(mem_addr_t) + sizeof(uint8_t) /* count */ + sizeof(crc_t);
 
     if(expected_size != adu_size) return NULL;
     if(!valid_crc(adu, adu_size)) return NULL;
@@ -245,17 +259,19 @@ char *make_request_rd_bytes(
 {
     if(!dst) return NULL;
     if(UINT8_C(249) < count) return NULL;
+    if(sizeof(modbus_rtu_rd_bytes_request_t) > max_size) return NULL;
 
-    const char req[] =
+    modbus_rtu_rd_bytes_request_t req =
     {
-        slave_addr, FCODE_RD_BYTES,
-        mem_addr.high, mem_addr.low,
-        count
+        .addr = slave_addr,
+        .fcode = FCODE_RD_BYTES,
+        .mem_addr = mem_addr,
+        .count = count
     };
 
-    if(sizeof(req) > max_size) return NULL;
-    memcpy(dst, req, sizeof(req));
-    return implace_crc_impl(dst, dst + sizeof(req), max_size);
+    if(!implace_crc(&req, sizeof(req))) return NULL;
+    memcpy(dst, &req, sizeof(req));
+    return dst + sizeof(req);
 }
 
 const modbus_rtu_rd_bytes_reply_t *

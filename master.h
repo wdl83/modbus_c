@@ -47,7 +47,7 @@ typedef modbus_rtu_mem_access_request_t modbus_rtu_rd_holding_registers_request_
 
 char *make_request_rd_holding_registers(
     modbus_rtu_addr_t,
-    modbus_rtu_mem_addr_t, modbus_rtu_count_t count,
+    modbus_rtu_mem_addr_t, modbus_rtu_count_t,
     char *dst, size_t max_size);
 
 typedef struct __attribute__((packed))
@@ -88,10 +88,13 @@ typedef modbus_rtu_wr_register_t modbus_rtu_wr_register_request_t;
 
 char *make_request_wr_register(
     modbus_rtu_addr_t,
-    modbus_rtu_mem_addr_t, uint16_t data,
+    modbus_rtu_mem_addr_t, modbus_rtu_data16_t,
     char *dst, size_t max_size);
 
 typedef modbus_rtu_wr_register_t modbus_rtu_wr_register_reply_t;
+
+const modbus_rtu_wr_register_reply_t *parse_reply_wr_register(
+    const void *adu, size_t adu_size);
 
 /* FCODE_WR_REGISTERS --------------------------------------------------------*/
 
@@ -106,7 +109,7 @@ typedef struct __attribute__((packed))
 
 char *make_request_wr_registers(
     modbus_rtu_addr_t,
-    modbus_rtu_mem_addr_t, const modbus_rtu_data16_t *data, modbus_rtu_count_t count,
+    modbus_rtu_mem_addr_t, const modbus_rtu_data16_t *, modbus_rtu_count_t,
     char *dst, size_t max_size);
 
 typedef struct __attribute__((packed))

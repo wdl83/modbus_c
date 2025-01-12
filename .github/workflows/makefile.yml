@@ -8,20 +8,35 @@ on:
 
 jobs:
   build:
-
     runs-on: ubuntu-24.04
-
     steps:
+    - name: Install deps
+      run: |
+        sudo apt-get update
+        sudo apt-get -y install lcov 
     - uses: actions/checkout@v4
       with:
         submodules: recursive
-    - name: build_rtu_linux
+    - name: build rtu_linux
       run: make -f rtu_linux.mk
-    - name: build_tty_linux_tests
+    - name: build tty_linux_tests
       run: make -f tty_linux_tests.mk
-    - name: run_tty_linux_tests
+    - name: run tty_linux_tests
       run: make -f tty_linux_tests.mk run
-    - name: build_rtu_linux_tests
+    - name: build rtu_linux_tests
       run: make -f rtu_linux_tests.mk 
-    - name: run_rtu_linux_tests
+    - name: run rtu_linux_tests
+      run: make -f rtu_linux_tests.mk run
+  asan_build:
+    runs-on: ubuntu-24.04
+    steps:
+    - env:
+        DEBUG: 1
+    - name: Install deps
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    - name: build and run tty_linux_tests
+      run: make -f tty_linux_tests.mk run
+    - name: build and run rtu_linux_tests
       run: make -f rtu_linux_tests.mk run

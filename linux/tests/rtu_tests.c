@@ -21,6 +21,14 @@
 #define DEBUG_SIZE                                                          1024
 #define RTU_ADDR                                                   UINT8_C(0xAA)
 
+typedef modbus_rtu_addr_t addr_t;
+typedef modbus_rtu_fcode_t fcode_t;
+typedef modbus_rtu_ecode_t ecode_t;
+typedef modbus_rtu_mem_addr_t mem_addr_t;
+typedef modbus_rtu_count_t count_t;
+typedef modbus_rtu_data16_t data16_t;
+typedef modbus_rtu_crc_t crc_t;
+
 typedef struct
 {
     struct {
@@ -371,7 +379,7 @@ UTEST_I(TestFixture, read_holding_registers_33, 7)
         EXPECT_EQ(curr, rep_end);
         EXPECT_EQ(rep.header.addr, tf->rtu_config.self_addr);
         EXPECT_EQ(rep.header.fcode, FCODE_RD_HOLDING_REGISTERS);
-        EXPECT_EQ(rep.header.count, num << 1); // byte count
+        EXPECT_EQ(rep.header.byte_count, num << 1); // byte count
 
         /* rtu memory fill pattern [0, 1 ... 255, 0, 1 .. 255, ..] (every byte)
          * however rtu_memory implementation is done for 8-bit uC
@@ -422,7 +430,7 @@ UTEST_I(TestFixture, read_wr_register_0x00AB_offset_32, 7)
     }
 }
 
-UTEST_I(TestFixture, master_read_write_bytes, 7)
+UTEST_I(TestFixture, master_write_read_bytes, 7)
 {
     struct TestFixture *tf = utest_fixture;
     ASSERT_TRUE(tf);
@@ -432,7 +440,7 @@ UTEST_I(TestFixture, master_read_write_bytes, 7)
     rtu_master_impl_t impl = {.dev = &tf->master, .rate = tf->rtu_config.rate};
 
     const uint8_t *const tx_end =
-        rtu_master_write_bytes(
+        rtu_master_wr_bytes(
             &impl,
             tf->rtu_config.self_addr,
             WORD_TO_MEM_ADDR(RTU_MEMORY_ADDR),
@@ -447,7 +455,7 @@ UTEST_I(TestFixture, master_read_write_bytes, 7)
     memset(rx_buf, 0, sizeof(rx_buf));
 
     uint8_t *const rx_end =
-        rtu_master_read_bytes(
+        rtu_master_rd_bytes(
             &impl,
             tf->rtu_config.self_addr,
             WORD_TO_MEM_ADDR(RTU_MEMORY_ADDR),
@@ -455,6 +463,50 @@ UTEST_I(TestFixture, master_read_write_bytes, 7)
 
     EXPECT_EQ(rx_end, rx_buf + sizeof(rx_buf));
     EXPECT_EQ(0, memcmp(rx_buf, tx_buf, sizeof(rx_buf)));
+}
+
+UTEST_I(TestFixture, master_write_read_holding_registers, 7)
+{
+    struct TestFixture *tf = utest_fixture;
+    ASSERT_TRUE(tf);
+
+    const data16_t tx_data[] =
+    {
+        WORD_TO_DATA16(0x0012),
+        WORD_TO_DATA16(0x0034),
+        WORD_TO_DATA16(0x0056),
+        WORD_TO_DATA16(0x0078),
+        WORD_TO_DATA16(0x009A),
+        WORD_TO_DATA16(0x00BC),
+        WORD_TO_DATA16(0x00DE),
+        WORD_TO_DATA16(0x00F0)
+    };
+    rtu_master_impl_t impl = {.dev = &tf->master, .rate = tf->rtu_config.rate};
+
+    const data16_t *const tx_data_end =
+        rtu_master_wr_registers(
+            &impl,
+            tf->rtu_config.self_addr,
+            WORD_TO_MEM_ADDR(RTU_MEMORY_ADDR),
+            WORD_TO_COUNT(length_of(tx_data)), tx_data);
+
+    EXPECT_EQ(tx_data_end, tx_data + length_of(tx_data));
+
+    usleep(100000); // 10ms, for RTU to transition from BUSY to IDLE state
+
+    data16_t rx_data[length_of(tx_data)];
+
+    memset(rx_data, 0, sizeof(rx_data));
+
+    data16_t *const rx_data_end =
+        rtu_master_rd_holding_registers(
+            &impl,
+            tf->rtu_config.self_addr,
+            WORD_TO_MEM_ADDR(RTU_MEMORY_ADDR),
+            WORD_TO_COUNT(length_of(rx_data)), rx_data);
+
+    EXPECT_EQ(rx_data_end, rx_data + length_of(rx_data));
+    EXPECT_EQ(0, memcmp(tx_data, rx_data, sizeof(rx_data)));
 }
 
 

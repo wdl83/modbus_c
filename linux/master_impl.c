@@ -11,6 +11,13 @@ typedef modbus_rtu_count_t count_t;
 typedef modbus_rtu_data16_t data16_t;
 typedef modbus_rtu_crc_t crc_t;
 
+typedef modbus_rtu_rd_holding_registers_request_t rd_holding_registers_request_t;
+typedef modbus_rtu_rd_holding_registers_reply_header_t rd_holding_registers_reply_header_t;
+typedef modbus_rtu_rd_holding_registers_reply_t rd_holding_registers_reply_t;
+
+typedef modbus_rtu_wr_registers_request_header_t wr_registers_request_header_t;
+typedef modbus_rtu_wr_registers_reply_t wr_registers_reply_t;
+
 typedef modbus_rtu_wr_bytes_request_header_t wr_bytes_request_header_t;
 typedef modbus_rtu_wr_bytes_reply_t wr_bytes_reply_t;
 
@@ -41,7 +48,63 @@ void *read_impl(rtu_master_impl_t *impl, void *const data, const size_t size)
     return end == curr ? curr : NULL;
 }
 
-const void *rtu_master_write_bytes(
+void *rtu_master_rd_holding_registers(
+    rtu_master_impl_t *const impl,
+    const addr_t addr,
+    const mem_addr_t mem_addr, const count_t count, data16_t *const data)
+{
+    rd_holding_registers_request_t req =
+    {
+        .addr = addr,
+        .fcode = FCODE_RD_HOLDING_REGISTERS,
+        .mem_addr = mem_addr,
+        .count = count
+    };
+
+    if(!implace_crc(&req, sizeof(req))) return NULL;
+    if(!write_impl(impl, &req, sizeof(req))) return NULL;
+
+    char rx_buf[ADU_CAPACITY];
+    const size_t data_size = COUNT_TO_WORD(count) * sizeof(data16_t);
+    const size_t expected_size =
+        sizeof(rd_holding_registers_reply_header_t)
+        + data_size
+        + sizeof(crc_t);
+
+    if(!read_impl(impl, rx_buf, expected_size)) return NULL;
+
+    const rd_holding_registers_reply_t *rep =
+        parse_reply_rd_holding_registers(rx_buf, expected_size);
+
+    if(!rep) return NULL;
+
+    memcpy(data, rep->data, data_size);
+    return data + COUNT_TO_WORD(count);
+}
+
+const void *rtu_master_wr_registers(
+    rtu_master_impl_t *const impl,
+    const addr_t addr,
+    const mem_addr_t mem_addr, const count_t count, const data16_t *const data)
+{
+    char tx_buf[ADU_CAPACITY];
+
+    const char *req_end =
+        make_request_wr_registers(addr, mem_addr, data, count, tx_buf, sizeof(tx_buf));
+
+    if(!req_end) return NULL;
+
+    if(!write_impl(impl, tx_buf, (size_t)(req_end - tx_buf))) return NULL;
+
+    wr_registers_reply_t reply;
+
+    if(!read_impl(impl, &reply, sizeof(reply))) return NULL;
+
+    if(!parse_reply_wr_registers(&reply, sizeof(reply))) return NULL;
+    return data + COUNT_TO_WORD(count);
+}
+
+const void *rtu_master_wr_bytes(
     rtu_master_impl_t *const impl,
     const addr_t addr,
     const mem_addr_t mem_addr, const uint8_t count, const uint8_t *const bytes)
@@ -63,7 +126,7 @@ const void *rtu_master_write_bytes(
     return bytes + count;
 }
 
-void *rtu_master_read_bytes(
+void *rtu_master_rd_bytes(
     rtu_master_impl_t *const impl,
     const addr_t addr,
     const mem_addr_t mem_addr, const uint8_t count, uint8_t *const bytes)

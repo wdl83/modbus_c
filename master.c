@@ -10,6 +10,9 @@
 typedef modbus_rtu_addr_t addr_t;
 typedef modbus_rtu_fcode_t fcode_t;
 typedef modbus_rtu_ecode_t ecode_t;
+typedef modbus_rtu_mem_addr_t mem_addr_t;
+typedef modbus_rtu_count_t count_t;
+typedef modbus_rtu_data16_t data16_t;
 typedef modbus_rtu_crc_t crc_t;
 
 static
@@ -56,7 +59,7 @@ const void *valid_crc(const void *const adu, const size_t adu_size)
 
 char *make_request_rd_coils(
     const addr_t slave_addr,
-    const modbus_rtu_mem_addr_t mem_addr, const uint8_t count,
+    const mem_addr_t mem_addr, const uint8_t count,
     char *const dst, const size_t max_size)
 {
     if(!dst) return NULL;
@@ -76,27 +79,45 @@ char *make_request_rd_coils(
 
 char *make_request_rd_holding_registers(
     const addr_t slave_addr,
-    const modbus_rtu_mem_addr_t mem_addr, const uint8_t count,
+    const mem_addr_t mem_addr, const count_t count,
     char *const dst, const size_t max_size)
 {
     if(!dst) return NULL;
-    if(UINT8_C(0x7D) < count) return NULL;
+    if(UINT8_C(0x7D) < COUNT_TO_WORD(count)) return NULL;
+    if(sizeof(modbus_rtu_rd_holding_registers_request_t) > max_size) return NULL;
 
-    const char req[] =
+    modbus_rtu_rd_holding_registers_request_t req =
     {
-        slave_addr, FCODE_RD_HOLDING_REGISTERS,
-        mem_addr.high, mem_addr.low,
-        UINT8_C(0), count
+        .addr = slave_addr,
+        .fcode = FCODE_RD_HOLDING_REGISTERS,
+        .mem_addr = mem_addr,
+        .count = count
     };
 
-    if(sizeof(req) > max_size) return NULL;
-    memcpy(dst, req, sizeof(req));
-    return implace_crc_impl(dst, dst + sizeof(req), max_size);
+    if(!implace_crc(&req, sizeof(req))) return NULL;
+    memcpy(dst, &req, sizeof(req));
+    return dst + sizeof(req);
+}
+
+const modbus_rtu_rd_holding_registers_reply_t *parse_reply_rd_holding_registers(
+    const void *adu, size_t adu_size)
+{
+    const size_t expected_min_size =
+        sizeof(modbus_rtu_rd_holding_registers_reply_header_t)
+        + sizeof(crc_t);
+
+    if(expected_min_size > adu_size) return NULL;
+
+    const modbus_rtu_rd_holding_registers_reply_t *reply = adu;
+
+    if(expected_min_size + reply->header.byte_count != adu_size) return NULL;
+    if(!valid_crc(adu, adu_size)) return NULL;
+    return reply;
 }
 
 char *make_request_wr_coil(
     const addr_t slave_addr,
-    const modbus_rtu_mem_addr_t mem_addr, const uint8_t data,
+    const mem_addr_t mem_addr, const uint8_t data,
     char *const dst, const size_t max_size)
 {
     if(!dst) return NULL;
@@ -116,7 +137,7 @@ char *make_request_wr_coil(
 
 char *make_request_wr_register(
     const addr_t slave_addr,
-    const modbus_rtu_mem_addr_t mem_addr, const uint16_t data,
+    const mem_addr_t mem_addr, const uint16_t data,
     char *const dst, const size_t max_size)
 {
     const char req[] =
@@ -133,41 +154,52 @@ char *make_request_wr_register(
 
 char *make_request_wr_registers(
     addr_t slave_addr,
-    modbus_rtu_mem_addr_t mem_addr, const uint16_t *const data, const uint8_t count,
+    mem_addr_t mem_addr, const data16_t *const data, const count_t count,
     char *const dst, const size_t max_size)
 {
     if(!data || !dst) return NULL;
-    if(count > UINT8_C(0x7B)) return NULL;
+    if(UINT8_C(0x7B) < COUNT_TO_WORD(count)) return NULL;
 
-    const char req_header[] =
+    const size_t data_size = COUNT_TO_WORD(count) * sizeof(data16_t);
+    const size_t expected_size =
+        sizeof(modbus_rtu_wr_registers_request_header_t)
+        + data_size + sizeof(crc_t);
+
+    if(expected_size > max_size) return NULL;
+
+    modbus_rtu_wr_registers_request_header_t req_header =
     {
-        slave_addr, FCODE_WR_REGISTERS,
-        mem_addr.high, mem_addr.low, /* starting address */
-        UINT8_C(0), count, /* quantity of registers */
-        count << 1, /* byte_count */
+        .addr = slave_addr,
+        .fcode = FCODE_WR_REGISTERS,
+        .mem_addr = mem_addr,
+        .count =  count,
+        .byte_count = COUNT_TO_WORD(count) << 1,
     };
+
     char *curr = dst;
-    const char *const dst_end = dst + max_size;
 
-    if(sizeof(req_header) > (size_t)(dst_end - curr)) return NULL;
-    memcpy(curr, req_header, sizeof(req_header));
+    memcpy(curr, &req_header, sizeof(req_header));
     curr += sizeof(req_header);
-
-    for(
-        const uint16_t *i = data, *const end = data + count;
-        i != end; ++i)
-    {
-        if(dst_end == curr) return NULL;
-        *curr++ = HIGH_BYTE(*i);
-        if(dst_end == curr) return NULL;
-        *curr++ = LOW_BYTE(*i);
-    }
-
+    memcpy(curr, data, data_size);
+    curr += data_size;
     return implace_crc_impl(dst, curr, max_size);
 }
 
+const modbus_rtu_wr_registers_reply_t *
+parse_reply_wr_registers(const void *const adu, const size_t adu_size)
+{
+    const size_t expected_size =
+        sizeof(addr_t) + sizeof(fcode_t)
+        + sizeof(mem_addr_t) + sizeof(count_t)
+        + sizeof(crc_t);
+
+    if(expected_size != adu_size) return NULL;
+    if(!valid_crc(adu, adu_size)) return NULL;
+    return adu;
+}
+
 char *make_request_wr_bytes(
-    addr_t slave_addr, modbus_rtu_mem_addr_t mem_addr,
+    addr_t slave_addr, mem_addr_t mem_addr,
     const uint8_t *const data, const uint8_t count,
     char *const dst, const size_t max_size)
 {
@@ -198,7 +230,7 @@ parse_reply_wr_bytes(const void *const adu, const size_t adu_size)
 {
     const size_t expected_size =
         sizeof(addr_t) + sizeof(fcode_t)
-        + sizeof(uint16_t) /* mem addr */ + sizeof(uint8_t) /* count */
+        + sizeof(mem_addr_t) + sizeof(uint8_t) /* count */
         + sizeof(crc_t);
 
     if(expected_size != adu_size) return NULL;
@@ -208,7 +240,7 @@ parse_reply_wr_bytes(const void *const adu, const size_t adu_size)
 
 char *make_request_rd_bytes(
     const addr_t slave_addr,
-    const modbus_rtu_mem_addr_t mem_addr, const uint8_t count,
+    const mem_addr_t mem_addr, const uint8_t count,
     char *const dst, const size_t max_size)
 {
     if(!dst) return NULL;

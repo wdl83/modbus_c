@@ -47,14 +47,14 @@ typedef modbus_rtu_mem_access_request_t modbus_rtu_rd_holding_registers_request_
 
 char *make_request_rd_holding_registers(
     modbus_rtu_addr_t,
-    modbus_rtu_mem_addr_t, uint8_t count,
+    modbus_rtu_mem_addr_t, modbus_rtu_count_t count,
     char *dst, size_t max_size);
 
 typedef struct __attribute__((packed))
 {
     modbus_rtu_addr_t addr;
     modbus_rtu_fcode_t fcode;
-    uint8_t count;
+    uint8_t byte_count;
 } modbus_rtu_rd_holding_registers_reply_header_t;
 
 typedef struct __attribute__((packed))
@@ -62,6 +62,9 @@ typedef struct __attribute__((packed))
     modbus_rtu_rd_holding_registers_reply_header_t header;
     modbus_rtu_data16_t data[];
 } modbus_rtu_rd_holding_registers_reply_t;
+
+const modbus_rtu_rd_holding_registers_reply_t *parse_reply_rd_holding_registers(
+    const void *adu, size_t adu_size);
 
 /* FCODE_WR_COIL -------------------------------------------------------------*/
 
@@ -90,12 +93,33 @@ char *make_request_wr_register(
 
 typedef modbus_rtu_wr_register_t modbus_rtu_wr_register_reply_t;
 
-/* FCODE_WR_REGISTERs --------------------------------------------------------*/
+/* FCODE_WR_REGISTERS --------------------------------------------------------*/
+
+typedef struct __attribute__((packed))
+{
+    modbus_rtu_addr_t addr;
+    modbus_rtu_fcode_t fcode;
+    modbus_rtu_mem_addr_t mem_addr;
+    modbus_rtu_count_t count;
+    uint8_t byte_count;
+} modbus_rtu_wr_registers_request_header_t;
 
 char *make_request_wr_registers(
     modbus_rtu_addr_t,
-    modbus_rtu_mem_addr_t, const uint16_t *data, uint8_t count,
+    modbus_rtu_mem_addr_t, const modbus_rtu_data16_t *data, modbus_rtu_count_t count,
     char *dst, size_t max_size);
+
+typedef struct __attribute__((packed))
+{
+    modbus_rtu_addr_t addr;
+    modbus_rtu_fcode_t fcode;
+    modbus_rtu_mem_addr_t mem_addr;
+    modbus_rtu_count_t count;
+    modbus_rtu_crc_t crc;
+} modbus_rtu_wr_registers_reply_t;
+
+const modbus_rtu_wr_registers_reply_t *parse_reply_wr_registers(
+    const void *adu, size_t adu_size);
 
 /* FCODE_WR_BYTES ------------------------------------------------------------*/
 

@@ -29,10 +29,9 @@ jobs:
       run: make -f rtu_linux_tests.mk run
   asan_build:
     runs-on: ubuntu-24.04
+    env:
+      DEBUG: 1
     steps:
-    - env:
-        DEBUG: 1
-    - name: Install deps
     - uses: actions/checkout@v4
       with:
         submodules: recursive

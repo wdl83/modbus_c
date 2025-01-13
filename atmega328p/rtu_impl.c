@@ -98,12 +98,19 @@ void usart_rx_recv_cb(uint8_t data, usart_rxflags_t flags, uintptr_t user_data)
     }
 }
 
+void usart_tx_complete_cb(uintptr_t user_data)
+{
+    modbus_rtu_state_t *state = (modbus_rtu_state_t *)user_data;
+
+    (*state->serial_sent_cb)(state);
+}
+
 static
-void serial_send(modbus_rtu_state_t *state, modbus_rtu_serial_sent_cb_t sent_cb)
+void serial_send(modbus_rtu_state_t *state)
 {
     usart0_async_send(
         state->txbuf, state->txbuf_curr,
-        (usart_tx_complete_cb_t)sent_cb,
+        usart_tx_complete_cb,
         (uintptr_t)state);
 }
 

@@ -175,7 +175,7 @@ void timer_reset(modbus_rtu_state_t *state)
 }
 
 static
-void send_impl(modbus_rtu_state_t *state, modbus_rtu_serial_sent_cb_t sent_cb)
+void send_impl(modbus_rtu_state_t *state)
 {
     CHECK(state);
     CHECK(state->user_data);
@@ -191,9 +191,9 @@ void send_impl(modbus_rtu_state_t *state, modbus_rtu_serial_sent_cb_t sent_cb)
 
     tty_logD(impl->dev);
     CHECK(end == curr);
-    CHECK(sent_cb);
     tty_drain(dev->fd);
-    sent_cb(state);
+    CHECK(state->serial_sent_cb);
+    state->serial_sent_cb(state);
     modbus_rtu_event(state);
 }
 

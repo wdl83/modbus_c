@@ -1,3 +1,6 @@
 [submodule "utest"]
 	path = utest
 	url = https://github.com/wdl83/utest.h
+[submodule "atmega328p/atmega328p_drv"]
+	path = atmega328p/atmega328p_drv
+	url = https://github.com/wdl83/atmega328p_drv

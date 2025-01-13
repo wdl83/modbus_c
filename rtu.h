@@ -249,7 +249,7 @@ typedef
 void (*modbus_rtu_serial_sent_cb_t)(modbus_rtu_state_t *);
 
 typedef
-void (*modbus_rtu_serial_send_t)(modbus_rtu_state_t *, modbus_rtu_serial_sent_cb_t);
+void (*modbus_rtu_serial_send_t)(modbus_rtu_state_t *);
 
 typedef
 uint8_t *(*modbus_rtu_pdu_cb_t)(
@@ -320,6 +320,7 @@ struct modbus_rtu_state
     modbus_rtu_serial_recv_cb_t serial_recv_cb;
     modbus_rtu_serial_recv_err_cb_t serial_recv_err_cb;
     modbus_rtu_serial_send_t serial_send;
+    modbus_rtu_serial_sent_cb_t serial_sent_cb;
     modbus_rtu_pdu_cb_t pdu_cb;
     modbus_rtu_suspend_cb_t suspend_cb;
     modbus_rtu_resume_cb_t resume_cb;

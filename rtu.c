@@ -203,7 +203,7 @@ void adu_process(state_t *state)
             *(++state->txbuf_curr) = crc.high;
             ++(state->txbuf_curr);
             RTU_STATE_UPDATE(state->status, RTU_STATE_BUSY);
-            state->serial_send(state, serial_sent_cb);
+            state->serial_send(state);
         }
     }
     else
@@ -233,6 +233,7 @@ void modbus_rtu_init(
     state->serial_recv_cb = serial_recv_cb;
     state->serial_recv_err_cb = serial_recv_err_cb;
     state->serial_send = serial_send;
+    state->serial_sent_cb = serial_sent_cb;
     state->pdu_cb = pdu_cb;
     state->suspend_cb = suspend_cb;
     state->resume_cb = resume_cb;

@@ -1,7 +1,7 @@
 #include "rtu_impl.h"
 
-#include <drv/tmr0.h>
-#include <drv/usart0.h>
+#include "drv/tmr0.h"
+#include "drv/usart0.h"
 
 /* 19200bps:
  *
@@ -98,24 +98,17 @@ void usart_rx_recv_cb(uint8_t data, usart_rxflags_t flags, uintptr_t user_data)
     }
 }
 
-void usart_tx_complete_cb(uintptr_t user_data)
-{
-    modbus_rtu_state_t *state = (modbus_rtu_state_t *)user_data;
-
-    (*state->serial_sent_cb)(state);
-}
-
+static
 void serial_send(modbus_rtu_state_t *state, modbus_rtu_serial_sent_cb_t sent_cb)
 {
     usart0_async_send(
         state->txbuf, state->txbuf_curr,
-        usart_tx_complete_cb,
+        (usart_tx_complete_cb_t)sent_cb,
         (uintptr_t)state);
 }
 
 void modbus_rtu_impl(
     modbus_rtu_state_t *state,
-    modbus_rtu_addr_t addr,
     modbus_rtu_suspend_cb_t suspend_cb,
     modbus_rtu_resume_cb_t resume_cb,
     modbus_rtu_pdu_cb_t pdu_cb,
@@ -126,7 +119,6 @@ void modbus_rtu_impl(
 
     modbus_rtu_init(
         state,
-        addr,
         tmr_start_1t5, tmr_start_3t5, tmr_stop, tmr_reset,
         serial_send,
         pdu_cb,

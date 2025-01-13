@@ -3,11 +3,10 @@
 #include <stdint.h>
 #include <string.h>
 
-
 #include "crc.h"
-#include "linux/rtu_log_impl.h"
 #include "rtu.h"
 #include "rtu_log.h"
+
 
 typedef modbus_rtu_addr_t addr_t;
 typedef modbus_rtu_crc_t crc_t;

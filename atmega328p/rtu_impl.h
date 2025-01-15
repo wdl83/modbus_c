@@ -4,10 +4,6 @@
 
 #include "rtu.h"
 
-typedef struct
-{
-    modbus_rtu_state_t *rtu_state;
-} rtu_impl_t;
 
 void modbus_rtu_impl(
     modbus_rtu_state_t *,

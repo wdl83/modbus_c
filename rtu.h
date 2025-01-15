@@ -64,9 +64,10 @@
  *     ... [N0, N1, ... Ni, <- max 1.5t -> Nj, ... Nn] ...
  * */
 
-#define MAKE_WORD(low, high)         ((uint16_t)((high) << 8) | (uint16_t)(low))
-#define LOW_BYTE(word)                       ((uint16_t)(word) & UINT16_C(0xFF))
-#define HIGH_BYTE(word)                                  ((uint16_t)(word) >> 8)
+#define MAKE_WORD(low, high) \
+                    (((uint16_t)(high) << 8) | (uint16_t)(low) & UINT16_C(0xFF))
+#define LOW_BYTE(word)            ((uint8_t)((uint16_t)(word) & UINT16_C(0xFF)))
+#define HIGH_BYTE(word)                       ((uint8_t)((uint16_t)(word) >> 8))
 
 
 /* characters per second */
@@ -190,9 +191,14 @@ typedef struct
     uint8_t high;
 } modbus_rtu_crc_t;
 
+inline
+modbus_rtu_crc_t word_to_modbus_rtu_crc(uint16_t word)
+{
+    return (modbus_rtu_crc_t){.low = LOW_BYTE(word), .high = HIGH_BYTE(word)};
+}
+
 #define CRC_TO_WORD(crc)                            MAKE_WORD(crc.low, crc.high)
-#define WORD_TO_CRC(word) \
-              (modbus_rtu_crc_t){.low = LOW_BYTE(word), .high = HIGH_BYTE(word)}
+#define WORD_TO_CRC(word)               word_to_modbus_rtu_crc((uint16_t)(word))
 
 typedef struct
 {
@@ -200,9 +206,15 @@ typedef struct
     uint8_t low;
 } modbus_rtu_data16_t;
 
+
+inline
+modbus_rtu_data16_t word_to_modbus_rtu_data16(uint16_t word)
+{
+    return (modbus_rtu_data16_t){.low = LOW_BYTE(word), .high = HIGH_BYTE(word)};
+}
+
 #define DATA16_TO_WORD(data16)                MAKE_WORD(data16.low, data16.high)
-#define WORD_TO_DATA16(word) \
-           (modbus_rtu_data16_t){.high = HIGH_BYTE(word), .low = LOW_BYTE(word)}
+#define WORD_TO_DATA16(word)         word_to_modbus_rtu_data16((uint16_t)(word))
 
 /* source:
  * "MODBUS APPLICATION PROTOCOL SPECIFICATION V1.1b3"

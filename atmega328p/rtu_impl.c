@@ -26,7 +26,6 @@ static
 void tmr_cb(uintptr_t user_data)
 {
     modbus_rtu_state_t *state = (modbus_rtu_state_t *)user_data;
-
     state->timer_cb(state);
 }
 
@@ -98,10 +97,10 @@ void usart_rx_recv_cb(uint8_t data, usart_rxflags_t flags, uintptr_t user_data)
     }
 }
 
+static
 void usart_tx_complete_cb(uintptr_t user_data)
 {
     modbus_rtu_state_t *state = (modbus_rtu_state_t *)user_data;
-
     (*state->serial_sent_cb)(state);
 }
 
@@ -110,8 +109,7 @@ void serial_send(modbus_rtu_state_t *state)
 {
     usart0_async_send(
         state->txbuf, state->txbuf_curr,
-        usart_tx_complete_cb,
-        (uintptr_t)state);
+        usart_tx_complete_cb, (uintptr_t)state);
 }
 
 void modbus_rtu_impl(
@@ -129,9 +127,8 @@ void modbus_rtu_impl(
         tmr_start_1t5, tmr_start_3t5, tmr_stop, tmr_reset,
         serial_send,
         pdu_cb,
-        suspend_cb,
-        resume_cb,
+        suspend_cb, resume_cb,
         user_data);
 
-    usart0_async_recv_cb(usart_rx_recv_cb, (uintptr_t)(state));
+    usart0_async_recv_cb(usart_rx_recv_cb, (uintptr_t)state);
 }

@@ -11,10 +11,8 @@ modbus_rtu_crc_t modbus_rtu_calc_crc(const uint8_t *begin, const uint8_t *end)
      * 0xA001 == b1010 0000 000 0001
      * initial CRC16 value 0xFFFF */
 
-    modbus_rtu_crc_t crc = {.low = UINT8_C(0xFF), .high = UINT8_C(0xFF)};
+    uint16_t crc = UINT16_C(0xFFFF);
 
-    if(NULL == begin || NULL == end) return crc;
-
-    while(begin != end) crc = WORD_TO_CRC(_crc16_update(CRC_TO_WORD(crc), *begin++));
-    return crc;
+    while(begin != end) crc = _crc16_update(crc, *begin++);
+    return WORD_TO_CRC(crc);
 }

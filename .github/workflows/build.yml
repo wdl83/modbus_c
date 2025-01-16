@@ -13,10 +13,12 @@ jobs:
     - name: Install deps
       run: |
         sudo apt-get update
-        sudo apt-get -y install lcov 
+        sudo apt-get -y install lcov avr-libc binutils-avr gcc-avr
     - uses: actions/checkout@v4
       with:
         submodules: recursive
+    - name: build rtu_atmega328p
+      run: make -f rtu_atmega328p.mk
     - name: build rtu_linux
       run: make -f rtu_linux.mk
     - name: build tty_linux_tests

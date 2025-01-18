@@ -12,6 +12,8 @@ typedef struct
 {
     tty_dev_t *dev;
     speed_t rate;
+    // command execution timeout, depends on hardware
+    int timeout_exec_ms;
 } rtu_master_impl_t;
 
 

@@ -85,4 +85,5 @@ void tty_set_term_config(int fd, const struct termios *);
 void tty_configure_term(struct termios *, speed_t, parity_t, data_bits_t, stop_bits_t);
 int tty_bps(speed_t);
 const char *tty_rate_str(speed_t);
+const char *tty_parity_str(parity_t);
 void tty_logD(tty_dev_t *);

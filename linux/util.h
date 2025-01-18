@@ -19,7 +19,7 @@
     do { \
         if(!(p)) break; \
         free((void *)(p)); \
-        p = NULL; \
+        (p) = NULL; \
     } while(0)
 
 #ifdef __cplusplus

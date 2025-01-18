@@ -149,6 +149,7 @@ int main(int argc, const char *argv[])
 
     rtu_memory_impl_clear(&memory_impl);
     rtu_memory_impl_init(&memory_impl);
+    memory_impl.priv.self_addr = addr;
 
     tty_dev_t dev;
 

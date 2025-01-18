@@ -42,7 +42,7 @@ void *read_impl(rtu_master_impl_t *impl, void *const data, const size_t size)
 {
     char *const begin = data;
     char *const end = begin + size;
-    const int tmax_ms = calc_tmax_ms(impl->rate, size);
+    const int tmax_ms = calc_tmax_ms(impl->rate, size) + impl->timeout_exec_ms;
     char *const curr = tty_read(impl->dev, begin, end, tmax_ms, NULL);
     tty_logD(impl->dev);
     return end == curr ? curr : NULL;

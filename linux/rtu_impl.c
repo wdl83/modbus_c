@@ -40,9 +40,9 @@ uint8_t *rtu_memory_impl_pdu_cb(
 
     rtu_memory_impl_t *memory_impl = (rtu_memory_impl_t *)user_data;
 
-    logT("self %u dst %u", memory_impl->self_addr, addr);
+    logT("self %u dst %u", memory_impl->priv.self_addr, addr);
 
-    if(memory_impl->self_addr != addr) goto exit;
+    if(memory_impl->priv.self_addr != addr) goto exit;
 
     *dst_begin++ = addr;
 

@@ -3,6 +3,7 @@ include linux/Makefile.defs
 TARGET = rtu_linux
 
 CFLAGS += \
+	-DDEBUG_RTU_MEMORY \
 	-DRTU_MEMORY_ADDR=0x1000 \
 	-DRTU_MEMORY_SIZE=1024 \
 	-DTLOG_SIZE=4096 \

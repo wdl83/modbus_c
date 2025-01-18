@@ -181,7 +181,7 @@ void tty_configure(
     memset(&dev->config, 0, sizeof(dev->config));
     tty_configure_term(&dev->config, rate, parity, data_bits, stop_bits);
     tty_set_term_config(dev->fd, &dev->config);
-    logT("%d %dbps", dev->fd, tty_bps(rate));
+    logT("%d %dbps %s", dev->fd, tty_bps(rate), tty_parity_str(parity));
 }
 
 void validate_syscall_result(int r)
@@ -328,28 +328,28 @@ const char *tty_write(
 
 void tty_flush_rx(int fd)
 {
-    CHECK(-1 != fd);
+    if(-1 == fd) return;
     CHECK_ERRNO(-1 != tcflush(fd, TCIFLUSH));
     logT("%d", fd);
 }
 
 void tty_flush_tx(int fd)
 {
-    CHECK(-1 != fd);
+    if(-1 == fd) return;
     CHECK_ERRNO(-1 != tcflush(fd, TCOFLUSH));
     logT("%d", fd);
 }
 
 void tty_flush(int fd)
 {
-    CHECK(-1 != fd);
+    if(-1 == fd) return;
     CHECK_ERRNO(-1 != tcflush(fd, TCIOFLUSH));
     logT("%d", fd);
 }
 
 void tty_drain(int fd)
 {
-    CHECK(-1 != fd);
+    if(-1 == fd) return;
     CHECK_ERRNO(-1 != tcdrain(fd));
     logT("%d", fd);
 }
@@ -357,30 +357,28 @@ void tty_drain(int fd)
 
 void tty_exclusive_on(int fd)
 {
-    CHECK(-1 != fd);
+    if(-1 == fd) return;
     CHECK_ERRNO(0 == ioctl(fd, TIOCEXCL));
     logT("%d", fd);
 }
 
 void tty_exclusive_off(int fd)
 {
-    CHECK(-1 != fd);
+    if(-1 == fd) return;
     CHECK_ERRNO(0 == ioctl(fd, TIOCNXCL));
     logT("%d", fd);
 }
 
 void tty_get_term_config(int fd, struct termios *config)
 {
-    CHECK(-1 != fd);
-    CHECK(config);
+    if(-1 == fd || !config) return;
     CHECK_ERRNO(-1 != tcgetattr(fd, config));
     logT("%d", fd);
 }
 
 void tty_set_term_config(int fd, const struct termios *config)
 {
-    CHECK(-1 != fd);
-    CHECK(config);
+    if(-1 == fd || !config) return;
     CHECK_ERRNO(-1 != tcsetattr(fd, TCSANOW, config));
 
     struct termios current;
@@ -388,7 +386,7 @@ void tty_set_term_config(int fd, const struct termios *config)
     memset(&current, 0, sizeof(current));
     tty_get_term_config(fd, &current);
     CHECK(0 == memcmp(config, &current, sizeof(struct termios)));
-#if TTY_ASYNC_LOW_LATENCY
+#ifdef TTY_ASYNC_LOW_LATENCY
     {
         struct serial_struct serial;
 
@@ -502,7 +500,18 @@ const char *tty_rate_str(speed_t rate)
         case B38400: return "38400";
         case B57600: return "57600";
         case B115200: return "115200";
-        default: return "unsupported";
+        default: return "unsupported_rate";
+    }
+}
+
+const char *tty_parity_str(parity_t parity)
+{
+    switch(parity)
+    {
+        case PARITY_none: return "N";
+        case PARITY_even: return "E";
+        case PARITY_odd: return "O";
+        default: return "unsupported_parity";
     }
 }
 

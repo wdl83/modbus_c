@@ -22,6 +22,7 @@ typedef struct
     {
         struct
         {
+            char unused[RTU_MEMORY_SIZE - TLOG_SIZE];
             char tlog[TLOG_SIZE];
         };
         struct
@@ -46,7 +47,7 @@ enum
         + sizeof_field(rtu_memory_impl_t, header) \
         + offset)
 
-VALIDATE_RTU_MEM_OFFSET(tlog, 0);
+VALIDATE_RTU_MEM_OFFSET(tlog, 824);
 VALIDATE_RTU_MEM_OFFSET(bytes, 0);
 
 void rtu_memory_impl_clear(rtu_memory_impl_t *);

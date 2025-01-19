@@ -15,7 +15,7 @@ git clone --recurse-submodules https://github.com/wdl83/modbus_c
 
 All targets use same implementation
 - [state machine](https://github.com/wdl83/modbus_c/blob/master/rtu.c)
-- [memory](https://github.com/wdl83/modbus_c/blob/master/memory.c)
+- [memory](https://github.com/wdl83/modbus_c/blob/master/rtu_memory.c)
 
 ### Linux RTU
 

@@ -18,9 +18,9 @@ CSRCS = \
 	linux/crc.c \
 	linux/gnu.c \
 	linux/log.c \
-	linux/main.c \
 	linux/rtu_impl.c \
 	linux/rtu_log_impl.c \
+	linux/rtu_main.c \
 	linux/time_util.c \
 	linux/tty.c \
 	linux/util.c \

@@ -1,0 +1,57 @@
+@startuml sequence
+
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontName Monospaced
+skinparam sequenceArrowThickness 2
+
+title modbus_c -- Master <-> Slave Request/Reply Sequence
+
+actor Application as APP
+participant "rtu_master_impl\n(Linux)" as MASTER_IMPL
+participant "master.c\nRequest Builder" as MASTER
+participant "Serial / TTY" as SERIAL
+participant "rtu.c\nSlave State Machine" as RTU
+participant "rtu_memory.c\nPDU Handler" as PDU_CB
+
+== Master sends request ==
+
+APP -> MASTER_IMPL : rtu_master_rd_holding_registers(\n  addr, mem_addr, count, data)
+MASTER_IMPL -> MASTER : make_request_rd_holding_registers(\n  addr, mem_addr, count, buf)
+MASTER -> MASTER : validate params\nbuild ADU frame
+MASTER -> MASTER : implace_crc(adu)
+MASTER --> MASTER_IMPL : pointer past last byte
+MASTER_IMPL -> SERIAL : write(fd, buf, len)
+
+== Slave receives frame ==
+
+SERIAL -> RTU : serial_recv_cb(byte)\n[repeated for each byte]
+RTU -> RTU : IDLE -> SOF\nstart 1.5t timer
+RTU -> RTU : SOF -> RECV\n(bytes 2..N)
+RTU -> RTU : 1.5t timeout\nRECV -> EOF
+RTU -> RTU : 3.5t timeout\nEOF -> IDLE
+RTU -> RTU : adu_check()\nCRC verify
+RTU -> PDU_CB : pdu_cb(state, addr, fcode,\n  begin, end, curr,\n  dst_begin, dst_end, user_data)
+PDU_CB -> PDU_CB : validate address\nread memory region
+PDU_CB --> RTU : dst_curr (reply end pointer)
+RTU -> RTU : append reply CRC\nRTU_STATE_BUSY
+RTU -> SERIAL : serial_send(state)
+
+== Master receives reply ==
+
+SERIAL -> MASTER_IMPL : read(fd, buf, reply_len)
+MASTER_IMPL -> MASTER : parse_reply_rd_holding_registers(\n  buf, reply_len)
+MASTER -> MASTER : size check\nvalid_crc()
+MASTER --> MASTER_IMPL : modbus_rtu_rd_holding_registers_reply_t *
+MASTER_IMPL -> MASTER_IMPL : copy data[] to caller buffer
+MASTER_IMPL --> APP : data + count  (success)\nor NULL (failure)
+
+== Error path: slave replies with exception ==
+
+note over RTU, PDU_CB
+  If fcode unsupported or address out of range,
+  pdu_cb returns exception frame:
+  [addr | fcode+0x80 | ecode | CRC]
+  Master detects via find_ecode()
+end note
+
+@enduml

@@ -1,0 +1,35 @@
+@startuml sequence_slave
+
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontName Monospaced
+skinparam sequenceArrowThickness 2
+
+title modbus_c -- Slave Request/Reply Sequence (Serial <-> PDU Handler)
+
+participant "Serial / TTY" as SERIAL
+participant "rtu.c\nSlave State Machine" as RTU
+participant "rtu_memory.c\nPDU Handler" as PDU_CB
+
+== Slave receives frame ==
+
+SERIAL -> RTU : serial_recv_cb(byte)\n[repeated for each byte]
+RTU -> RTU : IDLE -> SOF\nstart 1.5t timer
+RTU -> RTU : SOF -> RECV\n(bytes 2..N)
+RTU -> RTU : 1.5t timeout\nRECV -> EOF
+RTU -> RTU : 3.5t timeout\nEOF -> IDLE
+RTU -> RTU : adu_check()\nCRC verify
+RTU -> PDU_CB : pdu_cb(state, addr, fcode,\n  begin, end, curr,\n  dst_begin, dst_end, user_data)
+PDU_CB -> PDU_CB : validate address\nread memory region
+PDU_CB --> RTU : dst_curr (reply end pointer)
+RTU -> RTU : append reply CRC\nRTU_STATE_BUSY
+RTU -> SERIAL : serial_send(state)
+
+== Error path: slave replies with exception ==
+
+note over RTU, PDU_CB
+  If fcode unsupported or address out of range,
+  pdu_cb returns exception frame:
+  [addr | fcode+0x80 | ecode | CRC]
+end note
+
+@enduml

@@ -1,0 +1,37 @@
+@startuml component
+
+skinparam componentStyle rectangle
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontName Monospaced
+
+title modbus_c -- Component Diagram
+
+package "Platform-Independent Core" {
+    component [rtu.c\nRTU State Machine] as RTU
+    component [rtu_memory.c\nMemory PDU Handler] as RTU_MEM
+    component [master.c\nMaster Requests & Replies] as MASTER
+    component [crc.h\nCRC-16] as CRC
+}
+
+package "Platform Adapters" {
+    component [linux/\ntty + timers] as LINUX #LightBlue
+    component [atmega328p/\nUSART + Timer ISR] as MEGA #LightGreen
+    component [stm32f103c8/\nstm8s003f3/] as OTHER #LightYellow
+}
+
+package "Application / Tests" {
+    component [rtu_main\nrtu_linux_tests] as APP #LightCoral
+}
+
+RTU --> CRC
+MASTER --> CRC
+RTU_MEM --> RTU : pdu_cb
+
+LINUX --> RTU : init / event
+MEGA --> RTU : init / event
+OTHER --> RTU : init / event
+
+APP --> LINUX
+APP --> MASTER
+
+@enduml

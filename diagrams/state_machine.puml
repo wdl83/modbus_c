@@ -1,0 +1,57 @@
+@startuml state_machine
+
+skinparam backgroundColor #FAFAFA
+skinparam defaultFontName Monospaced
+
+title modbus_c -- RTU Slave State Machine
+
+[*] --> INIT : power-on
+
+INIT : Enter: reset rx/tx buffers\nstart 3.5t timer
+
+IDLE : Waiting for first\ncharacter (SOF)
+
+SOF : Start-of-Frame\ndetected\n1st byte buffered\nstart 1.5t timer
+
+RECV : Receiving frame bytes\nreset 1.5t timer\non each byte
+
+EOF : 1.5t elapsed --\npossible end of frame\nstart 3.5t timer
+
+BUSY : Sending reply\nover serial
+
+INIT --> IDLE : 3.5t silent\ninterval elapsed
+
+IDLE --> SOF : byte received\n(serial_recv_cb)\nsuspend_cb()
+
+SOF --> RECV : next byte received\n(serial_recv_cb)
+
+RECV --> RECV : byte received\n(timer reset)
+
+RECV --> EOF : 1.5t timer\nexpired
+
+EOF --> IDLE : 3.5t confirmed\nCRC check\npdu_cb()\nreply -> BUSY or stay IDLE\nresume_cb()
+
+IDLE --> BUSY : [reply ready]\nserial_send()
+
+BUSY --> INIT : serial_sent_cb()\ntransmission complete
+
+INIT --> INIT : error
+SOF --> INIT : error
+RECV --> INIT : error
+EOF --> INIT : error
+BUSY --> INIT : error
+
+note right of EOF
+  ADU validated:
+  * minimum size >= 4 bytes
+  * CRC-16 verified
+  pdu_cb invoked with
+  address, fcode, payload
+end note
+
+note right of BUSY
+  Reply frame built by pdu_cb
+  CRC appended automatically
+end note
+
+@enduml

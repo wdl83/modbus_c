@@ -53,13 +53,13 @@ All multi-byte fields are big-endian (high byte first).
 
 | FC | Name | Request PDU | Response PDU | Notes |
 |----|------|-------------|--------------|-------|
-| `0x01` | Read Coils | `[ 0x01 | AddrH | AddrL | QtyH | QtyL ]` | `[ 0x01 | ByteCnt | CoilSt[0] | ... | CoilSt[N-1] ]` | Qty <= 125 coils; LSB-first |
-| `0x03` | Read Holding Registers | `[ 0x03 | AddrH | AddrL | QtyH | QtyL ]` | `[ 0x03 | ByteCnt | RegVal[0]H | RegVal[0]L | ... | RegVal[N-1]H | RegVal[N-1]L ]` | Qty 1-125 regs; reg = 1 B, zero-extended |
-| `0x05` | Write Single Coil | `[ 0x05 | OutAddrH | OutAddrL | OutValH | OutValL ]` | *(echo)* | `0xFF00` ON / `0x0000` OFF |
-| `0x06` | Write Single Register | `[ 0x06 | RegAddrH | RegAddrL | RegValH | RegValL ]` | *(echo)* | RegValH = `0x00` (impl.) |
-| `0x10` | Write Multiple Registers | `[ 0x10 | AddrH | AddrL | QtyH | QtyL | ByteCnt | RegVal[0]H | RegVal[0]L | ... | RegVal[N-1]H | RegVal[N-1]L ]` | `[ 0x10 | AddrH | AddrL | QtyH | QtyL ]` | Qty 1-123 regs; RegValH = `0x00` (impl.) |
-| `0x41` | Read Bytes *(user-defined)* | `[ 0x41 | AddrH | AddrL | ByteCnt ]` | `[ 0x41 | AddrH | AddrL | ByteCnt | Data[0] | ... | Data[N-1] ]` | ByteCnt 1-249 B |
-| `0x42` | Write Bytes *(user-defined)* | `[ 0x42 | AddrH | AddrL | ByteCnt | Data[0] | ... | Data[N-1] ]` | `[ 0x42 | AddrH | AddrL | ByteCnt ]` | ByteCnt 1-249 B |
+| `0x01` | Read Coils | `[ 0x01, AddrH, AddrL, QtyH, QtyL ]` | `[ 0x01, ByteCnt, CoilSt[0], ..., CoilSt[N-1] ]` | Qty <= 125 coils; LSB-first |
+| `0x03` | Read Holding Registers | `[ 0x03, AddrH, AddrL, QtyH, QtyL ]` | `[ 0x03, ByteCnt, RegVal[0]H, RegVal[0]L, ..., RegVal[N-1]H, RegVal[N-1]L ]` | Qty 1-125 regs; reg = 1 B, zero-extended |
+| `0x05` | Write Single Coil | `[ 0x05, OutAddrH, OutAddrL, OutValH, OutValL ]` | *(echo)* | `0xFF00` ON / `0x0000` OFF |
+| `0x06` | Write Single Register | `[ 0x06, RegAddrH, RegAddrL, RegValH, RegValL ]` | *(echo)* | RegValH = `0x00` (impl.) |
+| `0x10` | Write Multiple Registers | `[ 0x10, AddrH, AddrL, QtyH, QtyL, ByteCnt, RegVal[0]H, RegVal[0]L, ..., RegVal[N-1]H, RegVal[N-1]L ]` | `[ 0x10, AddrH, AddrL, QtyH, QtyL ]` | Qty 1-123 regs; RegValH = `0x00` (impl.) |
+| `0x41` | Read Bytes *(user-defined)* | `[ 0x41, AddrH, AddrL, ByteCnt ]` | `[ 0x41, AddrH, AddrL, ByteCnt, Data[0], ..., Data[N-1] ]` | ByteCnt 1-249 B |
+| `0x42` | Write Bytes *(user-defined)* | `[ 0x42, AddrH, AddrL, ByteCnt, Data[0], ..., Data[N-1] ]` | `[ 0x42, AddrH, AddrL, ByteCnt ]` | ByteCnt 1-249 B |
 
 ## rtu_memory
 

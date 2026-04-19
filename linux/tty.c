@@ -16,8 +16,11 @@
 #include "tty.h"
 #include "util.h"
 
-static
-char *dump(char *dst, const char *const dst_end, const char *begin, const char *const end)
+static char *dump(
+    char *dst,
+    const char *const dst_end,
+    const char *begin,
+    const char *const end)
 {
     CHECK(dst);
     CHECK(dst_end);
@@ -26,20 +29,20 @@ char *dump(char *dst, const char *const dst_end, const char *begin, const char *
 
     int num = 0;
 
-    while(begin != end)
+    while (begin != end)
     {
         const int value = (unsigned char)*begin;
         ++begin;
 
-        if(0 == value)
+        if (0 == value)
         {
             ++num;
-            if(begin != end) continue;
+            if (begin != end) continue;
         }
 
-        if(0 < num)
+        if (0 < num)
         {
-            if(1 < num)
+            if (1 < num)
             {
                 const int len = snprintf(dst, dst_end - dst, "%dx", num);
                 dst += min(len, dst_end - dst);
@@ -48,7 +51,7 @@ char *dump(char *dst, const char *const dst_end, const char *begin, const char *
                 const int len = snprintf(dst, dst_end - dst, "%02x", 0);
                 dst += min(len, dst_end - dst);
             }
-            if(begin != end)
+            if (begin != end)
             {
                 const int len = snprintf(dst, dst_end - dst, " ");
                 dst += min(len, dst_end - dst);
@@ -56,13 +59,13 @@ char *dump(char *dst, const char *const dst_end, const char *begin, const char *
             num = 0;
         }
 
-        if(0 != value)
+        if (0 != value)
         {
             const int len = snprintf(dst, dst_end - dst, "%02x", value);
             dst += min(len, dst_end - dst);
         }
 
-        if(begin != end)
+        if (begin != end)
         {
             const int len = snprintf(dst, dst_end - dst, " ");
             dst += min(len, dst_end - dst);
@@ -71,11 +74,14 @@ char *dump(char *dst, const char *const dst_end, const char *begin, const char *
     return dst;
 }
 
-static
-void debug(
+static void debug(
     tty_dev_t *dev,
-    const char *tag, int64_t timeout_us, int64_t duration_us,
-    const char *begin, const char *const end, const char *const curr)
+    const char *tag,
+    int64_t timeout_us,
+    int64_t duration_us,
+    const char *begin,
+    const char *const end,
+    const char *const curr)
 {
     CHECK(dev);
     CHECK(tag);
@@ -83,15 +89,14 @@ void debug(
     CHECK(end);
     CHECK(curr);
 
-    char *dst = dev->debug.curr;
+    char *dst                 = dev->debug.curr;
     const char *const dst_end = dev->debug.end;
 
-    if(!dst || !dst_end) return;
+    if (!dst || !dst_end) return;
 
     int len = snprintf(
-        dst, dst_end - dst,
-        "%s %" PRId64 "us/%" PRId64 "us (%zd) ",
-        tag, duration_us, timeout_us, curr - begin);
+        dst, dst_end - dst, "%s %" PRId64 "us/%" PRId64 "us (%zd) ", tag,
+        duration_us, timeout_us, curr - begin);
 
     dst += min(len, dst_end - dst);
     dst = dump(dst, dst_end, begin, end);
@@ -105,11 +110,11 @@ void tty_init(tty_dev_t *dev, size_t debug_size)
     CHECK(dev);
     memset(dev, 0, sizeof(tty_dev_t));
     dev->fd = -1;
-    if(debug_size)
+    if (debug_size)
     {
         CHECK_ERRNO(NULL != (dev->debug.begin = malloc(debug_size)));
         dev->debug.curr = dev->debug.begin;
-        dev->debug.end = dev->debug.begin + debug_size;
+        dev->debug.end  = dev->debug.begin + debug_size;
         memset(dev->debug.begin, 0, debug_size);
     }
     logT("%p debug_size %zu", dev, debug_size);
@@ -117,29 +122,30 @@ void tty_init(tty_dev_t *dev, size_t debug_size)
 
 void tty_deinit(tty_dev_t *dev)
 {
-    if(!dev) return;
+    if (!dev) return;
 
     tty_close(dev);
 
-    if(dev->path)
+    if (dev->path)
     {
         free(dev->path);
         dev->path = NULL;
     }
 
-    if(dev->debug.begin)
+    if (dev->debug.begin)
     {
         free(dev->debug.begin);
         dev->debug.begin = NULL;
-        dev->debug.curr = NULL;
-        dev->debug.end = NULL;
+        dev->debug.curr  = NULL;
+        dev->debug.end   = NULL;
     }
     logT("%p", dev);
 }
 
 void tty_open(tty_dev_t *dev, const char *path, int *user_flags)
 {
-    const int flags = user_flags ? *user_flags : O_CLOEXEC | O_NONBLOCK | O_RDWR;
+    const int flags
+        = user_flags ? *user_flags : O_CLOEXEC | O_NONBLOCK | O_RDWR;
     CHECK(dev);
     CHECK(-1 == dev->fd);
     CHECK(path);
@@ -160,22 +166,25 @@ void tty_adopt(tty_dev_t *dev, int fd)
 
 void tty_close(tty_dev_t *dev)
 {
-    if(!dev) return;
+    if (!dev) return;
 
-    if(dev->path)
+    if (dev->path)
     {
         free(dev->path);
         dev->path = NULL;
     }
 
-    if(-1 != dev->fd) CHECK_ERRNO(0 == close(dev->fd));
+    if (-1 != dev->fd) CHECK_ERRNO(0 == close(dev->fd));
     logT("%p %d", dev, dev->fd);
     dev->fd = -1;
 }
 
 void tty_configure(
     tty_dev_t *dev,
-    speed_t rate, parity_t parity, data_bits_t data_bits, stop_bits_t stop_bits)
+    speed_t rate,
+    parity_t parity,
+    data_bits_t data_bits,
+    stop_bits_t stop_bits)
 {
     CHECK(dev);
     memset(&dev->config, 0, sizeof(dev->config));
@@ -187,12 +196,13 @@ void tty_configure(
 void validate_syscall_result(int r)
 {
     CHECK_ERRNO(-1 != r || -1 == r && EINTR == errno);
-    if(-1 == r) logT("%s", strerror(errno));
+    if (-1 == r) logT("%s", strerror(errno));
 }
 
 char *tty_read(
     tty_dev_t *dev,
-    char *const begin, const char *const end,
+    char *const begin,
+    const char *const end,
     const int timeout,
     struct pollfd *aux)
 {
@@ -201,83 +211,91 @@ char *tty_read(
     CHECK(end);
     CHECK(-1 != dev->fd);
 
-    struct pollfd events[] =
-    {
-        {dev->fd, (short)POLLIN, (short)0},
-        {aux ? aux->fd : -1, aux ? aux->events : (short)0, (short)0}
-    };
+    struct pollfd events[]
+        = {{dev->fd, (short)POLLIN, (short)0},
+           {aux ? aux->fd : -1, aux ? aux->events : (short)0, (short)0}};
 
     const int64_t start_ts = timestamp_us();
-    int64_t elapsed = 0;
-    int elapsed_ms = 0;
-    char *curr = begin;
+    int64_t elapsed        = 0;
+    int elapsed_ms         = 0;
+    char *curr             = begin;
 
-    while(curr != end && (0 > timeout || timeout >= elapsed_ms))
+    while (curr != end && (0 > timeout || timeout >= elapsed_ms))
     {
         int r = poll(events, length_of(events), timeout - elapsed_ms);
 
         validate_syscall_result(r);
-        elapsed = timestamp_us() - start_ts;
+        elapsed    = timestamp_us() - start_ts;
         elapsed_ms = elapsed / 1000;
 
-        if(0 == r) continue; // poll timeout
+        if (0 == r) continue; // poll timeout
 
-        if(events[0].revents & POLLIN)
+        if (events[0].revents & POLLIN)
         {
             r = read(dev->fd, curr, end - curr);
             validate_syscall_result(r);
             CHECK(0 != r);
             curr += r;
-            if(0 > timeout) break;
+            if (0 > timeout) break;
         }
 
-        if(events[1].events & events[1].revents)
+        if (events[1].events & events[1].revents)
         {
-            if(aux) aux->revents = events[1].revents;
+            if (aux) aux->revents = events[1].revents;
             break;
         }
     }
 
-    debug(dev, __FUNCTION__, (int64_t)timeout * 1000, timestamp_us() - start_ts, begin, end, curr);
+    debug(
+        dev, __FUNCTION__, (int64_t)timeout * 1000, timestamp_us() - start_ts,
+        begin, end, curr);
     return curr;
 }
 
-char *tty_read_ll(tty_dev_t *dev, char *const begin, const char *const end, const int delay_us)
+char *tty_read_ll(
+    tty_dev_t *dev,
+    char *const begin,
+    const char *const end,
+    const int delay_us)
 {
     CHECK(dev);
     CHECK(begin);
     CHECK(end);
     CHECK(-1 != dev->fd);
     const int64_t start_us = timestamp_us();
-    int64_t elapsed_us = 0;
-    char *curr = begin;
+    int64_t elapsed_us     = 0;
+    char *curr             = begin;
 
-    for(;delay_us > elapsed_us;)
+    for (; delay_us > elapsed_us;)
     {
-        if(0 != elapsed_us)
+        if (0 != elapsed_us)
         {
-            if(-1 == usleep(delay_us - elapsed_us)) CHECK_ERRNO(errno == EINTR);
+            if (-1 == usleep(delay_us - elapsed_us))
+                CHECK_ERRNO(errno == EINTR);
         }
 
         const int r = read(dev->fd, curr, end - curr);
 
-        if(0 < r)
+        if (0 < r)
         {
             curr += r;
             break;
         }
 
         // EAGAIN should not be reported, see VTIME/VMIN
-        if(0 != r) CHECK_ERRNO(errno == EINTR);
+        if (0 != r) CHECK_ERRNO(errno == EINTR);
         elapsed_us += timestamp_us() - start_us;
     }
-    debug(dev, __FUNCTION__, delay_us, timestamp_us() - start_us, begin, end, curr);
+    debug(
+        dev, __FUNCTION__, delay_us, timestamp_us() - start_us, begin, end,
+        curr);
     return curr;
 }
 
 const char *tty_write(
     tty_dev_t *dev,
-    const char *begin, const char *const end,
+    const char *begin,
+    const char *const end,
     const int timeout,
     struct pollfd *aux)
 {
@@ -286,28 +304,26 @@ const char *tty_write(
     CHECK(end);
     CHECK(-1 != dev->fd);
 
-    struct pollfd events[] =
-    {
-        {dev->fd, (short)POLLOUT, (short)0},
-        {aux ? aux->fd : -1, aux ? aux->events : (short)0, (short)0}
-    };
+    struct pollfd events[]
+        = {{dev->fd, (short)POLLOUT, (short)0},
+           {aux ? aux->fd : -1, aux ? aux->events : (short)0, (short)0}};
 
     const int64_t start_ts = timestamp_us();
-    int64_t elapsed = 0;
-    int elapsed_ms = 0;
-    const char *curr = begin;
+    int64_t elapsed        = 0;
+    int elapsed_ms         = 0;
+    const char *curr       = begin;
 
-    while(curr != end && (0 > timeout || timeout >= elapsed_ms))
+    while (curr != end && (0 > timeout || timeout >= elapsed_ms))
     {
         int r = poll(events, length_of(events), timeout - elapsed_ms);
 
         validate_syscall_result(r);
-        elapsed = timestamp_us() - start_ts;
+        elapsed    = timestamp_us() - start_ts;
         elapsed_ms = elapsed / 1000;
 
-        if(0 == r) continue; // poll timeout
+        if (0 == r) continue; // poll timeout
 
-        if(events[0].revents & POLLOUT)
+        if (events[0].revents & POLLOUT)
         {
             r = write(dev->fd, curr, end - curr);
             validate_syscall_result(r);
@@ -315,70 +331,71 @@ const char *tty_write(
             curr += r;
         }
 
-        if(events[1].events & events[1].revents)
+        if (events[1].events & events[1].revents)
         {
-            if(aux) aux->revents = events[1].revents;
+            if (aux) aux->revents = events[1].revents;
             break;
         }
     }
 
-    debug(dev, __FUNCTION__, (int64_t)timeout * 1000, timestamp_us() - start_ts, begin, end, curr);
+    debug(
+        dev, __FUNCTION__, (int64_t)timeout * 1000, timestamp_us() - start_ts,
+        begin, end, curr);
     return curr;
 }
 
 void tty_flush_rx(int fd)
 {
-    if(-1 == fd) return;
+    if (-1 == fd) return;
     CHECK_ERRNO(-1 != tcflush(fd, TCIFLUSH));
     logT("%d", fd);
 }
 
 void tty_flush_tx(int fd)
 {
-    if(-1 == fd) return;
+    if (-1 == fd) return;
     CHECK_ERRNO(-1 != tcflush(fd, TCOFLUSH));
     logT("%d", fd);
 }
 
 void tty_flush(int fd)
 {
-    if(-1 == fd) return;
+    if (-1 == fd) return;
     CHECK_ERRNO(-1 != tcflush(fd, TCIOFLUSH));
     logT("%d", fd);
 }
 
 void tty_drain(int fd)
 {
-    if(-1 == fd) return;
+    if (-1 == fd) return;
     CHECK_ERRNO(-1 != tcdrain(fd));
     logT("%d", fd);
 }
 
-
 void tty_exclusive_on(int fd)
 {
-    if(-1 == fd) return;
+    if (-1 == fd) return;
     CHECK_ERRNO(0 == ioctl(fd, TIOCEXCL));
     logT("%d", fd);
 }
 
 void tty_exclusive_off(int fd)
 {
-    if(-1 == fd) return;
+    if (-1 == fd) return;
     CHECK_ERRNO(0 == ioctl(fd, TIOCNXCL));
     logT("%d", fd);
 }
 
 void tty_get_term_config(int fd, struct termios *config)
 {
-    if(-1 == fd || !config) return;
+    if (-1 == fd || !config) return;
     CHECK_ERRNO(-1 != tcgetattr(fd, config));
     logT("%d", fd);
 }
 
 void tty_set_term_config(int fd, const struct termios *config)
 {
-    if(-1 == fd || !config) return;
+    if (-1 == fd || !config) return;
     CHECK_ERRNO(-1 != tcsetattr(fd, TCSANOW, config));
 
     struct termios current;
@@ -400,7 +417,10 @@ void tty_set_term_config(int fd, const struct termios *config)
 
 void tty_configure_term(
     struct termios *config,
-    speed_t speed, parity_t parity, data_bits_t data_bits, stop_bits_t stop_bits)
+    speed_t speed,
+    parity_t parity,
+    data_bits_t data_bits,
+    stop_bits_t stop_bits)
 {
     CHECK(config);
 
@@ -411,7 +431,7 @@ void tty_configure_term(
     }
     // parity
     {
-        if(PARITY_none == parity)
+        if (PARITY_none == parity)
         {
             config->c_cflag &= ~PARENB;
             config->c_iflag &= ~INPCK;
@@ -419,25 +439,25 @@ void tty_configure_term(
         else
         {
             config->c_iflag |= INPCK;
-            //config->c_iflag &= ~IGNPAR;
+            // config->c_iflag &= ~IGNPAR;
             config->c_cflag |= PARENB;
 
-            if(PARITY_odd == parity) config->c_cflag |= PARODD;
-            else if(PARITY_even == parity) config->c_cflag &= ~PARODD;
+            if (PARITY_odd == parity) config->c_cflag |= PARODD;
+            else if (PARITY_even == parity) config->c_cflag &= ~PARODD;
         }
     }
     // data bits
     {
         config->c_cflag &= ~CSIZE;
-        if(DATA_BITS_5 == data_bits) config->c_cflag |= CS5;
-        else if(DATA_BITS_6 == data_bits) config->c_cflag |= CS6;
-        else if(DATA_BITS_7 == data_bits) config->c_cflag |= CS7;
-        else if(DATA_BITS_8 == data_bits) config->c_cflag |= CS8;
+        if (DATA_BITS_5 == data_bits) config->c_cflag |= CS5;
+        else if (DATA_BITS_6 == data_bits) config->c_cflag |= CS6;
+        else if (DATA_BITS_7 == data_bits) config->c_cflag |= CS7;
+        else if (DATA_BITS_8 == data_bits) config->c_cflag |= CS8;
     }
     // stop bits
     {
-        if(STOP_BITS_1 == stop_bits) config->c_cflag &= ~CSTOPB;
-        else if(STOP_BITS_2 == stop_bits) config->c_cflag |= CSTOPB;
+        if (STOP_BITS_1 == stop_bits) config->c_cflag &= ~CSTOPB;
+        else if (STOP_BITS_2 == stop_bits) config->c_cflag |= CSTOPB;
     }
     // aux (similar to cfmakeraw())
     {
@@ -453,9 +473,10 @@ void tty_configure_term(
         // disable special character interpretation
         config->c_lflag &= ~ISIG;
         // disable SW flow control
-        config->c_iflag &= ~(IXON | IXOFF |IXANY);
+        config->c_iflag &= ~(IXON | IXOFF | IXANY);
         // disable spacial character processing
-        config->c_iflag &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL);
+        config->c_iflag
+            &= ~(IGNBRK | BRKINT | PARMRK | ISTRIP | INLCR | IGNCR | ICRNL);
         // disable impl. defined output processing
         config->c_oflag &= ~OPOST;
         // do not convert '\n' to '\r\n'
@@ -466,62 +487,60 @@ void tty_configure_term(
          * the lesser of the number of bytes available, or the number
          * of bytes requested.  If no data is available, read(2) returns 0. */
         config->c_cc[VTIME] = 0;
-        config->c_cc[VMIN] = 0;
+        config->c_cc[VMIN]  = 0;
     }
 }
 
 int tty_bps(speed_t rate)
 {
-    switch(rate)
+    switch (rate)
     {
-        case B1200: return 1200;
-        case B2400: return 2400;
-        case B4800: return 4800;
-        case B9600: return 9600;
-        case B19200: return 19200;
-        case B38400: return 38400;
-        case B57600: return 57600;
-        case B115200: return 115200;
-        default:
-            CHECK(0 && "unsupported rate");
-            return -1;
+    case B1200: return 1200;
+    case B2400: return 2400;
+    case B4800: return 4800;
+    case B9600: return 9600;
+    case B19200: return 19200;
+    case B38400: return 38400;
+    case B57600: return 57600;
+    case B115200: return 115200;
+    default: CHECK(0 && "unsupported rate"); return -1;
     }
 }
 
 const char *tty_rate_str(speed_t rate)
 {
-    switch(rate)
+    switch (rate)
     {
-        case B1200: return "1200";
-        case B2400: return "2400";
-        case B4800: return "4800";
-        case B9600: return "9600";
-        case B19200: return "19200";
-        case B38400: return "38400";
-        case B57600: return "57600";
-        case B115200: return "115200";
-        default: return "unsupported_rate";
+    case B1200: return "1200";
+    case B2400: return "2400";
+    case B4800: return "4800";
+    case B9600: return "9600";
+    case B19200: return "19200";
+    case B38400: return "38400";
+    case B57600: return "57600";
+    case B115200: return "115200";
+    default: return "unsupported_rate";
     }
 }
 
 const char *tty_parity_str(parity_t parity)
 {
-    switch(parity)
+    switch (parity)
     {
-        case PARITY_none: return "N";
-        case PARITY_even: return "E";
-        case PARITY_odd: return "O";
-        default: return "unsupported_parity";
+    case PARITY_none: return "N";
+    case PARITY_even: return "E";
+    case PARITY_odd: return "O";
+    default: return "unsupported_parity";
     }
 }
 
 void tty_logD(tty_dev_t *dev)
 {
-    if(!dev || dev->debug.begin == dev->debug.curr) return;
+    if (!dev || dev->debug.begin == dev->debug.curr) return;
 
-    char *const begin = dev->debug.begin;
+    char *const begin     = dev->debug.begin;
     const char *const end = dev->debug.curr;
-    const int len = end - begin;
+    const int len         = end - begin;
 
     logD("%.*s", len, begin);
     dev->debug.curr = begin;

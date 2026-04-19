@@ -13,6 +13,7 @@ modbus_rtu_crc_t modbus_rtu_calc_crc(const uint8_t *begin, const uint8_t *end)
 
     uint16_t crc = UINT16_C(0xFFFF);
 
-    while(begin != end) crc = _crc16_update(crc, *begin++);
+    while (begin != end)
+        crc = _crc16_update(crc, *begin++);
     return WORD_TO_CRC(crc);
 }

@@ -7,7 +7,7 @@
 #include "gnu.h"
 
 #ifndef BASE_FILE_NAME
-#define BASE_FILE_NAME "?"
+    #define BASE_FILE_NAME "?"
 #endif
 
 typedef enum
@@ -20,7 +20,8 @@ typedef enum
 } log_level_t;
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
 int current_log_level(void);
@@ -29,20 +30,22 @@ int current_log_level(void);
 } // extern "C"
 #endif
 
-#define LOG_IMPL(dst, prefix, fmt, ...) \
-    do { \
-        fprintf( \
-            dst, "[%d:%d:" prefix "] %s:%d %s " fmt "\n", \
-            getpid(), gnu_thread_id(), \
-            BASE_FILE_NAME, __LINE__, __func__, ##__VA_ARGS__); \
-        fflush(dst); \
-    } while(0)
+#define LOG_IMPL(dst, prefix, fmt, ...)                                        \
+    do                                                                         \
+    {                                                                          \
+        fprintf(                                                               \
+            dst, "[%d:%d:" prefix "] %s:%d %s " fmt "\n", getpid(),            \
+            gnu_thread_id(), BASE_FILE_NAME, __LINE__, __func__,               \
+            ##__VA_ARGS__);                                                    \
+        fflush(dst);                                                           \
+    } while (0)
 
-#define LOG_IF_IMPL(dst, level, prefix, fmt, ...) \
-    do { \
-        if(current_log_level() < level) break; \
-        LOG_IMPL(dst, prefix, fmt, ##__VA_ARGS__); \
-    } while(0)
+#define LOG_IF_IMPL(dst, level, prefix, fmt, ...)                              \
+    do                                                                         \
+    {                                                                          \
+        if (current_log_level() < level) break;                                \
+        LOG_IMPL(dst, prefix, fmt, ##__VA_ARGS__);                             \
+    } while (0)
 
 // log always with tag "A"
 #define logA(fmt, ...) LOG_IMPL(stdout, "A", fmt, ##__VA_ARGS__)

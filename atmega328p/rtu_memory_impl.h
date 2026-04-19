@@ -8,7 +8,6 @@
 #include "rtu.h"
 #include "rtu_memory.h"
 
-
 typedef struct
 {
     /* begin: private memory (not accessible via rtu_memory_t *) */
@@ -34,18 +33,15 @@ typedef struct
 
 enum
 {
-    RTU_MEM_OFFSET =
-        sizeof_field(rtu_memory_impl_t, priv)
+    RTU_MEM_OFFSET = sizeof_field(rtu_memory_impl_t, priv)
         + sizeof_field(rtu_memory_impl_t, header)
 };
 
-#define VALIDATE_RTU_MEM_OFFSET(field, offset) \
-    STATIC_ASSERT_STRUCT_OFFSET( \
-        rtu_memory_impl_t, \
-        field, \
-        sizeof_field(rtu_memory_impl_t, priv) \
-        + sizeof_field(rtu_memory_impl_t, header) \
-        + offset)
+#define VALIDATE_RTU_MEM_OFFSET(field, offset)                                 \
+    STATIC_ASSERT_STRUCT_OFFSET(                                               \
+        rtu_memory_impl_t, field,                                              \
+        sizeof_field(rtu_memory_impl_t, priv)                                  \
+            + sizeof_field(rtu_memory_impl_t, header) + offset)
 
 VALIDATE_RTU_MEM_OFFSET(tlog, 824);
 VALIDATE_RTU_MEM_OFFSET(bytes, 0);
@@ -57,6 +53,9 @@ uint8_t *rtu_memory_impl_pdu_cb(
     modbus_rtu_state_t *,
     modbus_rtu_addr_t,
     modbus_rtu_fcode_t,
-    const uint8_t *begin, const uint8_t *end, const uint8_t *curr,
-    uint8_t *dst_begin, const uint8_t *const dst_end,
+    const uint8_t *begin,
+    const uint8_t *end,
+    const uint8_t *curr,
+    uint8_t *dst_begin,
+    const uint8_t *const dst_end,
     uintptr_t user_data);

@@ -34,7 +34,6 @@
  * and a value of 1.750ms for inter-frame delay (t 3.5 ).
  * */
 
-
 /* Specification requires (see 2.5.1 "RTU Transmission Mode"):
  *
  * Format:
@@ -64,14 +63,13 @@
  *     ... [N0, N1, ... Ni, <- max 1.5t -> Nj, ... Nn] ...
  * */
 
-#define MAKE_WORD(low, high) \
-                    (((uint16_t)(high) << 8) | (uint16_t)(low) & UINT16_C(0xFF))
-#define LOW_BYTE(word)            ((uint8_t)((uint16_t)(word) & UINT16_C(0xFF)))
-#define HIGH_BYTE(word)                       ((uint8_t)((uint16_t)(word) >> 8))
-
+#define MAKE_WORD(low, high)                                                   \
+    (((uint16_t)(high) << 8) | (uint16_t)(low) & UINT16_C(0xFF))
+#define LOW_BYTE(word)  ((uint8_t)((uint16_t)(word) & UINT16_C(0xFF)))
+#define HIGH_BYTE(word) ((uint8_t)((uint16_t)(word) >> 8))
 
 /* characters per second */
-#define CALC_CPS(BR) ((BR) / 10)
+#define CALC_CPS(BR)                        ((BR) / 10)
 #define CALC_MAX_INTER_FRAME_TIMEOUT_us(BR) (15 * (100000 / CALC_CPS(BR)))
 #define CALC_MIN_SILENT_INTERVAL_us(BR)
 
@@ -94,7 +92,7 @@
 
 /* <-- 1-bit Internal Bits or Physical coils */
 #define FCODE_RD_COILS 1
-#define FCODE_WR_COIL 5
+#define FCODE_WR_COIL  5
 #define FCODE_WR_COILS 15
 /* --> 1-bit Internal Bits or Physical coils */
 
@@ -104,11 +102,11 @@
 
 /* <-- 16bit Internal Registers of Physical Output Registers */
 #define FCODE_RD_HOLDING_REGISTERS 3
-#define FCODE_WR_REGISTER 6
-#define FCODE_WR_REGISTERS 16
-#define FCODE_RD_WR_REGISTERS 23
-#define FCODE_MWR_REGISTER 22
-#define FCODE_RD_FIFO 24
+#define FCODE_WR_REGISTER          6
+#define FCODE_WR_REGISTERS         16
+#define FCODE_RD_WR_REGISTERS      23
+#define FCODE_MWR_REGISTER         22
+#define FCODE_RD_FIFO              24
 /* --> 16-bit Internal Registers of Physical Output Registers */
 
 /* <-- File Record Access */
@@ -117,12 +115,12 @@
 /* --> File Record Access */
 
 /* <-- Diagnostics */
-#define FCODE_RD_EXCEPTION_STATUS  7
-#define FCODE_DIAGNOSTIC  8
-#define FCODE_GET_COM_EVENT_CNTR 11
-#define FCODE_GET_COM_EVENT_LOG 12
-#define FCODE_REPORT_SERVER_ID 17
-#define FCODE_RD_DEVICE_ID 43
+#define FCODE_RD_EXCEPTION_STATUS 7
+#define FCODE_DIAGNOSTIC          8
+#define FCODE_GET_COM_EVENT_CNTR  11
+#define FCODE_GET_COM_EVENT_LOG   12
+#define FCODE_REPORT_SERVER_ID    17
+#define FCODE_RD_DEVICE_ID        43
 /* --> Diagnostics */
 
 /* <-- User1 (65..72) */
@@ -155,12 +153,12 @@
 /* --> User */
 
 /* Excption codes */
-#define ECODE_ILLEGAL_FUNCTION 0x1
-#define ECODE_ILLEGAL_DATA_ADDRESS 0x2
-#define ECODE_ILLEGAL_DATA_VALUE 0x3
+#define ECODE_ILLEGAL_FUNCTION      0x1
+#define ECODE_ILLEGAL_DATA_ADDRESS  0x2
+#define ECODE_ILLEGAL_DATA_VALUE    0x3
 #define ECODE_SERVER_DEVICE_FAILURE 0x4
 
-#define ECODE_USER_OFFSET 0x80
+#define ECODE_USER_OFFSET  0x80
 #define ECODE_FORMAT_ERROR (ECODE_USER_OFFSET + 0)
 
 /*
@@ -170,9 +168,9 @@
  *                      <-PDU---------------->
  */
 
-#define ADU_CAPACITY 256
-#define ADU_MIN_SIZE (1 /* ADDR */ + 1 /* FCODE */ + 2 /* CRC */)
-#define PDU_CAPACITY 253
+#define ADU_CAPACITY      256
+#define ADU_MIN_SIZE      (1 /* ADDR */ + 1 /* FCODE */ + 2 /* CRC */)
+#define PDU_CAPACITY      253
 #define PDU_DATA_CAPACITY 252
 
 typedef uint8_t modbus_rtu_addr_t;
@@ -183,22 +181,21 @@ typedef struct
     /* source:
      * "MODBUS over serial line specification and implementation guide V1.02"
      * "2.5.1.2 CRC Checking" page 14.
-     * "The CRC field is appended to the message as the last field in the message.
-     * When this is done, the low–order byte of the field is appended first,
-     * followed by the high–order byte.
-     * The CRC high–order byte is the last byte to be sent in the message." */
+     * "The CRC field is appended to the message as the last field in the
+     * message. When this is done, the low–order byte of the field is appended
+     * first, followed by the high–order byte. The CRC high–order byte is the
+     * last byte to be sent in the message." */
     uint8_t low;
     uint8_t high;
 } modbus_rtu_crc_t;
 
-inline
-modbus_rtu_crc_t word_to_modbus_rtu_crc(uint16_t word)
+inline modbus_rtu_crc_t word_to_modbus_rtu_crc(uint16_t word)
 {
     return (modbus_rtu_crc_t){.low = LOW_BYTE(word), .high = HIGH_BYTE(word)};
 }
 
-#define CRC_TO_WORD(crc)                            MAKE_WORD(crc.low, crc.high)
-#define WORD_TO_CRC(word)               word_to_modbus_rtu_crc((uint16_t)(word))
+#define CRC_TO_WORD(crc)  MAKE_WORD(crc.low, crc.high)
+#define WORD_TO_CRC(word) word_to_modbus_rtu_crc((uint16_t)(word))
 
 typedef struct
 {
@@ -206,15 +203,14 @@ typedef struct
     uint8_t low;
 } modbus_rtu_data16_t;
 
-
-inline
-modbus_rtu_data16_t word_to_modbus_rtu_data16(uint16_t word)
+inline modbus_rtu_data16_t word_to_modbus_rtu_data16(uint16_t word)
 {
-    return (modbus_rtu_data16_t){.low = LOW_BYTE(word), .high = HIGH_BYTE(word)};
+    return (modbus_rtu_data16_t){.low  = LOW_BYTE(word),
+                                 .high = HIGH_BYTE(word)};
 }
 
-#define DATA16_TO_WORD(data16)                MAKE_WORD(data16.low, data16.high)
-#define WORD_TO_DATA16(word)         word_to_modbus_rtu_data16((uint16_t)(word))
+#define DATA16_TO_WORD(data16) MAKE_WORD(data16.low, data16.high)
+#define WORD_TO_DATA16(word)   word_to_modbus_rtu_data16((uint16_t)(word))
 
 /* source:
  * "MODBUS APPLICATION PROTOCOL SPECIFICATION V1.1b3"
@@ -222,13 +218,13 @@ modbus_rtu_data16_t word_to_modbus_rtu_data16(uint16_t word)
  * address word (2x bytes) transmission order:  high byte then low byte.  */
 typedef modbus_rtu_data16_t modbus_rtu_mem_addr_t;
 
-#define MEM_ADDR_TO_WORD(mem_addr)                      DATA16_TO_WORD(mem_addr)
-#define WORD_TO_MEM_ADDR(word)                              WORD_TO_DATA16(word)
+#define MEM_ADDR_TO_WORD(mem_addr) DATA16_TO_WORD(mem_addr)
+#define WORD_TO_MEM_ADDR(word)     WORD_TO_DATA16(word)
 
 typedef modbus_rtu_data16_t modbus_rtu_count_t;
 
-#define COUNT_TO_WORD(count)                               DATA16_TO_WORD(count)
-#define WORD_TO_COUNT(word)                                 WORD_TO_DATA16(word)
+#define COUNT_TO_WORD(count) DATA16_TO_WORD(count)
+#define WORD_TO_COUNT(word)  WORD_TO_DATA16(word)
 
 typedef uint8_t modbus_rtu_ecode_t; /* exception */
 
@@ -237,45 +233,38 @@ typedef uint8_t modbus_rtu_ecode_t; /* exception */
 struct modbus_rtu_state;
 typedef struct modbus_rtu_state modbus_rtu_state_t;
 
-typedef
-void (*modbus_rtu_timer_cb_t)(modbus_rtu_state_t *);
+typedef void (*modbus_rtu_timer_cb_t)(modbus_rtu_state_t *);
 
-typedef
-void (*modbus_rtu_timer_start_t)(modbus_rtu_state_t *);
+typedef void (*modbus_rtu_timer_start_t)(modbus_rtu_state_t *);
 
-typedef
-void (*modbus_rtu_timer_stop_t)(modbus_rtu_state_t *);
+typedef void (*modbus_rtu_timer_stop_t)(modbus_rtu_state_t *);
 
-typedef
-void (*modbus_rtu_timer_reset_t)(modbus_rtu_state_t *);
+typedef void (*modbus_rtu_timer_reset_t)(modbus_rtu_state_t *);
 
 /* callback on every byte received on serial line */
-typedef
-void (*modbus_rtu_serial_recv_cb_t)(modbus_rtu_state_t *, uint8_t data);
+typedef void (*modbus_rtu_serial_recv_cb_t)(modbus_rtu_state_t *, uint8_t data);
 
 /* callback on any error on serial line */
-typedef
-void (*modbus_rtu_serial_recv_err_cb_t)(modbus_rtu_state_t *, uint8_t data);
+typedef void (*modbus_rtu_serial_recv_err_cb_t)(
+    modbus_rtu_state_t *, uint8_t data);
 
-typedef
-void (*modbus_rtu_serial_sent_cb_t)(modbus_rtu_state_t *);
+typedef void (*modbus_rtu_serial_sent_cb_t)(modbus_rtu_state_t *);
 
-typedef
-void (*modbus_rtu_serial_send_t)(modbus_rtu_state_t *);
+typedef void (*modbus_rtu_serial_send_t)(modbus_rtu_state_t *);
 
-typedef
-uint8_t *(*modbus_rtu_pdu_cb_t)(
+typedef uint8_t *(*modbus_rtu_pdu_cb_t)(
     modbus_rtu_state_t *,
     modbus_rtu_addr_t,
     modbus_rtu_fcode_t,
-    const uint8_t *begin, const uint8_t *end, const uint8_t *curr,
-    uint8_t *dst_begin, const uint8_t *const dst_end,
+    const uint8_t *begin,
+    const uint8_t *end,
+    const uint8_t *curr,
+    uint8_t *dst_begin,
+    const uint8_t *const dst_end,
     uintptr_t user_data);
 
-typedef
-void (*modbus_rtu_suspend_cb_t)(uintptr_t user_data);
-typedef
-void (*modbus_rtu_resume_cb_t)(uintptr_t user_data);
+typedef void (*modbus_rtu_suspend_cb_t)(uintptr_t user_data);
+typedef void (*modbus_rtu_resume_cb_t)(uintptr_t user_data);
 
 enum
 {
@@ -298,29 +287,28 @@ typedef union
         uint8_t prev : 3;
         uint8_t curr : 3;
     } bits;
-}  modbus_rtu_status_t;
+} modbus_rtu_status_t;
 
-#define RTU_STATE_UPDATE(status, state) \
-    status.bits.updated = 1; \
-    status.bits.prev = status.bits.curr; \
-    status.bits.curr = state;
+#define RTU_STATE_UPDATE(status, state)                                        \
+    status.bits.updated = 1;                                                   \
+    status.bits.prev    = status.bits.curr;                                    \
+    status.bits.curr    = state;
 
-#define RTU_STATE_ERROR(status) \
-    status.bits.updated = 1; \
-    status.bits.error = 1;
+#define RTU_STATE_ERROR(status)                                                \
+    status.bits.updated = 1;                                                   \
+    status.bits.error   = 1;
 
 #ifdef MODBUS_RXBUF_CAPACITY
-#define RXBUF_CAPACITY MODBUS_RXBUF_CAPACITY
+    #define RXBUF_CAPACITY MODBUS_RXBUF_CAPACITY
 #else
-#define RXBUF_CAPACITY ADU_CAPACITY
+    #define RXBUF_CAPACITY ADU_CAPACITY
 #endif
 
 #ifdef MODBUS_TXBUF_CAPACITY
-#define TXBUF_CAPACITY MODBUS_TXBUF_CAPACITY
+    #define TXBUF_CAPACITY MODBUS_TXBUF_CAPACITY
 #else
-#define TXBUF_CAPACITY ADU_CAPACITY
+    #define TXBUF_CAPACITY ADU_CAPACITY
 #endif
-
 
 struct modbus_rtu_state
 {

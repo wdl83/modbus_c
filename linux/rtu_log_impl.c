@@ -3,7 +3,6 @@
 #include "util.h"
 #include <stdint.h>
 
-
 const char *rtu_state_str(uint8_t status)
 {
     const char *str[] = {"INIT", "IDLE", "SOF", "RECV", "EOF", "BUSY"};

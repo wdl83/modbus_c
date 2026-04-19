@@ -16,21 +16,15 @@
  * 1750us / 16us = 109,37 ~ 110 x 16us = 1760us
  * f = f_clk / (2 x N x (OCRA0 + 1) */
 
-static inline
-void tmr_init(void)
-{
-    TMR0_MODE_CTC();
-}
+static inline void tmr_init(void) { TMR0_MODE_CTC(); }
 
-static
-void tmr_cb(uintptr_t user_data)
+static void tmr_cb(uintptr_t user_data)
 {
     modbus_rtu_state_t *state = (modbus_rtu_state_t *)user_data;
     state->timer_cb(state);
 }
 
-static
-void tmr_start_1t5(modbus_rtu_state_t *state)
+static void tmr_start_1t5(modbus_rtu_state_t *state)
 {
     timer0_cb(tmr_cb, (uintptr_t)state);
     TMR0_WR_A(47);
@@ -39,8 +33,7 @@ void tmr_start_1t5(modbus_rtu_state_t *state)
     TMR0_CLK_DIV_256();
 }
 
-static
-void tmr_start_3t5(modbus_rtu_state_t *state)
+static void tmr_start_3t5(modbus_rtu_state_t *state)
 {
     timer0_cb(tmr_cb, (uintptr_t)state);
     TMR0_WR_A(110);
@@ -49,8 +42,7 @@ void tmr_start_3t5(modbus_rtu_state_t *state)
     TMR0_CLK_DIV_256();
 }
 
-static
-void tmr_stop(modbus_rtu_state_t *state)
+static void tmr_stop(modbus_rtu_state_t *state)
 {
     TMR0_CLK_DISABLE();
     TMR0_A_INT_DISABLE();
@@ -58,8 +50,7 @@ void tmr_stop(modbus_rtu_state_t *state)
     timer0_cb(NULL, 0);
 }
 
-static
-void tmr_reset(modbus_rtu_state_t *state)
+static void tmr_reset(modbus_rtu_state_t *state)
 {
     const uint8_t value = TMR0_CLK_RD();
     TMR0_CLK_DISABLE();
@@ -68,8 +59,7 @@ void tmr_reset(modbus_rtu_state_t *state)
     TMR0_CLK_WR(value);
 }
 
-static inline
-void usart_init(void)
+static inline void usart_init(void)
 {
     USART0_BR(CALC_BR(CPU_CLK, 19200));
     USART0_PARITY_EVEN();
@@ -77,39 +67,35 @@ void usart_init(void)
     USART0_TX_ENABLE();
 }
 
-static
-void usart_rx_recv_cb(uint8_t data, usart_rxflags_t flags, uintptr_t user_data)
+static void
+usart_rx_recv_cb(uint8_t data, usart_rxflags_t flags, uintptr_t user_data)
 {
     modbus_rtu_state_t *state = (modbus_rtu_state_t *)user_data;
 
-    if(0 == flags.fop_errors)
-    {
-        (*state->serial_recv_cb)(state, data);
-    }
+    if (0 == flags.fop_errors) { (*state->serial_recv_cb)(state, data); }
     else
     {
         {
             /* USART0 RX queue flushing in case of reception errors
              * TODO: verify if this is required */
-            while(USART0_RX_READY()) (void)USART0_RD();
+            while (USART0_RX_READY())
+                (void)USART0_RD();
         }
         (*state->serial_recv_err_cb)(state, data);
     }
 }
 
-static
-void usart_tx_complete_cb(uintptr_t user_data)
+static void usart_tx_complete_cb(uintptr_t user_data)
 {
     modbus_rtu_state_t *state = (modbus_rtu_state_t *)user_data;
     (*state->serial_sent_cb)(state);
 }
 
-static
-void serial_send(modbus_rtu_state_t *state)
+static void serial_send(modbus_rtu_state_t *state)
 {
     usart0_async_send(
-        state->txbuf, state->txbuf_curr,
-        usart_tx_complete_cb, (uintptr_t)state);
+        state->txbuf, state->txbuf_curr, usart_tx_complete_cb,
+        (uintptr_t)state);
 }
 
 void modbus_rtu_impl(
@@ -123,12 +109,8 @@ void modbus_rtu_impl(
     tmr_init();
 
     modbus_rtu_init(
-        state,
-        tmr_start_1t5, tmr_start_3t5, tmr_stop, tmr_reset,
-        serial_send,
-        pdu_cb,
-        suspend_cb, resume_cb,
-        user_data);
+        state, tmr_start_1t5, tmr_start_3t5, tmr_stop, tmr_reset, serial_send,
+        pdu_cb, suspend_cb, resume_cb, user_data);
 
     usart0_async_recv_cb(usart_rx_recv_cb, (uintptr_t)state);
 }

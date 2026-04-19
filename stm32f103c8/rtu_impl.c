@@ -20,7 +20,7 @@ uint32_t tim2spurious_;
 void isrTIM2(void)
 {
     TIM_UPDATE_INT_CLEAR(TIM2_BASE);
-    if(!TIM_ENABLED(TIM2_BASE))
+    if (!TIM_ENABLED(TIM2_BASE))
     {
         ++tim2spurious_;
         return;
@@ -31,19 +31,15 @@ void isrTIM2(void)
 /*----------------------------------------------------------------------------*/
 void isrUSART1(void)
 {
-    if(
-        USART_RX_INT_ENABLED(USART1_BASE)
-        && USART_RX_READY(USART1_BASE)) usart_rx_isr(USART1_BASE, &rx_ctrl_);
-    if(
-        USART_TX_READY_INT_ENABLED(USART1_BASE)
-        && USART_TX_READY(USART1_BASE)
-        ||
-        USART_TX_COMPLETE_INT_ENABLED(USART1_BASE)
-        && USART_TX_COMPLETE(USART1_BASE)) usart_tx_isr(USART1_BASE, &tx_ctrl_);
+    if (USART_RX_INT_ENABLED(USART1_BASE) && USART_RX_READY(USART1_BASE))
+        usart_rx_isr(USART1_BASE, &rx_ctrl_);
+    if (USART_TX_READY_INT_ENABLED(USART1_BASE) && USART_TX_READY(USART1_BASE)
+        || USART_TX_COMPLETE_INT_ENABLED(USART1_BASE)
+            && USART_TX_COMPLETE(USART1_BASE))
+        usart_tx_isr(USART1_BASE, &tx_ctrl_);
 }
 /*----------------------------------------------------------------------------*/
-static
-void tim_init(void)
+static void tim_init(void)
 {
     ASSERT(!state_);
     /* TIM2 uses APB1 clk as source. 36MHz / 360 = 100kHz (T = 10us) */
@@ -53,8 +49,7 @@ void tim_init(void)
     ISR_ENABLE(isrNoTIM2);
 }
 
-static
-void tim_start_1t5(modbus_rtu_state_t *state)
+static void tim_start_1t5(modbus_rtu_state_t *state)
 {
     ASSERT(state);
     ASSERT(!state_);
@@ -66,8 +61,7 @@ void tim_start_1t5(modbus_rtu_state_t *state)
     TIM_ENABLE(TIM2_BASE);
 }
 
-static
-void tim_start_3t5(modbus_rtu_state_t *state)
+static void tim_start_3t5(modbus_rtu_state_t *state)
 {
     ASSERT(state);
     ASSERT(!state_);
@@ -79,8 +73,7 @@ void tim_start_3t5(modbus_rtu_state_t *state)
     TIM_ENABLE(TIM2_BASE);
 }
 
-static
-void tim_stop(modbus_rtu_state_t *state)
+static void tim_stop(modbus_rtu_state_t *state)
 {
     (void)state;
     TIM_DISABLE(TIM2_BASE);
@@ -89,8 +82,7 @@ void tim_stop(modbus_rtu_state_t *state)
     state_ = NULL;
 }
 
-static
-void tim_reset(modbus_rtu_state_t *state)
+static void tim_reset(modbus_rtu_state_t *state)
 {
     (void)state;
     TIM_DISABLE(TIM2_BASE);
@@ -99,8 +91,7 @@ void tim_reset(modbus_rtu_state_t *state)
     TIM_ENABLE(TIM2_BASE);
 }
 
-static
-void usart_init(void)
+static void usart_init(void)
 {
     PORTA_CLK_ENABLE();
     USART1_CLK_ENABLE();
@@ -109,7 +100,8 @@ void usart_init(void)
      *
      * 9.1.4 Alternate functions (AF)
      * "For alternate function inputs, the port must be configured in Input mode
-     * (floating, pull-up or pull-down) and the input pin must be driven externally */
+     * (floating, pull-up or pull-down) and the input pin must be driven
+     * externally */
     GPIO_CFG(GPIOA_BASE, 9, CFN_OUT_ALT_PUSH_PULL, MODE_50MHz);
     GPIO_CFG(GPIOA_BASE, 10, CFN_IN_PULL_UP_DOWN, MODE_INPUT);
     GPIO_PULL_UP(GPIOA_BASE, 10);
@@ -124,13 +116,12 @@ void usart_init(void)
     ISR_ENABLE(isrNoUSART1);
 }
 
-static
-void rx_complete(uintptr_t base, usart_rx_ctrl_t *ctrl)
+static void rx_complete(uintptr_t base, usart_rx_ctrl_t *ctrl)
 {
     ASSERT(ctrl);
     modbus_rtu_state_t *state = (modbus_rtu_state_t *)(ctrl->user_data);
 
-    if(!ctrl->flags.errors.fopn)
+    if (!ctrl->flags.errors.fopn)
     {
         (*state->serial_recv_cb)(state, *ctrl->begin);
     }
@@ -139,13 +130,14 @@ void rx_complete(uintptr_t base, usart_rx_ctrl_t *ctrl)
         {
             /* RX queue flushing in case of reception errors
              * TODO: verify if this is required */
-            while(USART_RX_READY(USART1_BASE)) (void)USART_RD(USART1_BASE);
+            while (USART_RX_READY(USART1_BASE))
+                (void)USART_RD(USART1_BASE);
         }
         (*state->serial_recv_err_cb)(state, *ctrl->begin);
     }
 
-    rx_ctrl_.begin = rxbuf_;
-    rx_ctrl_.next = rx_ctrl_.begin;
+    rx_ctrl_.begin       = rxbuf_;
+    rx_ctrl_.next        = rx_ctrl_.begin;
     rx_ctrl_.flags.value = 0;
     usart_async_recv(USART1_BASE, &rx_ctrl_);
 }
@@ -161,10 +153,10 @@ void tx_complete(uintptr_t user_data, usart_tx_ctrl_t *ctrl)
 void serial_send(modbus_rtu_state_t *state, modbus_rtu_serial_sent_cb_t sent_cb)
 {
     (void)sent_cb;
-    tx_ctrl_.begin = state->txbuf;
-    tx_ctrl_.end = state->txbuf_curr;
+    tx_ctrl_.begin       = state->txbuf;
+    tx_ctrl_.end         = state->txbuf_curr;
     tx_ctrl_.complete_cb = tx_complete;
-    tx_ctrl_.user_data =  (uintptr_t)state;
+    tx_ctrl_.user_data   = (uintptr_t)state;
     usart_async_send(USART1_BASE, &tx_ctrl_);
 }
 
@@ -180,20 +172,14 @@ void modbus_rtu_impl(
     tim_init();
 
     modbus_rtu_init(
-        state,
-        addr,
-        tim_start_1t5, tim_start_3t5, tim_stop, tim_reset,
-        serial_send,
-        pdu_cb,
-        suspend_cb,
-        resume_cb,
-        user_data);
+        state, addr, tim_start_1t5, tim_start_3t5, tim_stop, tim_reset,
+        serial_send, pdu_cb, suspend_cb, resume_cb, user_data);
 
-    rx_ctrl_.begin = rxbuf_;
-    rx_ctrl_.end = rxbuf_ + sizeof(rxbuf_);
-    rx_ctrl_.next = rx_ctrl_.begin;
+    rx_ctrl_.begin       = rxbuf_;
+    rx_ctrl_.end         = rxbuf_ + sizeof(rxbuf_);
+    rx_ctrl_.next        = rx_ctrl_.begin;
     rx_ctrl_.complete_cb = rx_complete;
-    rx_ctrl_.user_data = (uintptr_t)state;
+    rx_ctrl_.user_data   = (uintptr_t)state;
 
     usart_async_recv(USART1_BASE, &rx_ctrl_);
 }

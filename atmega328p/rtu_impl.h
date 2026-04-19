@@ -4,7 +4,6 @@
 
 #include "rtu.h"
 
-
 void modbus_rtu_impl(
     modbus_rtu_state_t *,
     modbus_rtu_suspend_cb_t,

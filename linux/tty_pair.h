@@ -2,7 +2,6 @@
 
 #define TTY_DEFAULT_MULTIPLEXOR "/dev/ptmx"
 
-
 typedef struct tty_pair
 {
     int master_fd;

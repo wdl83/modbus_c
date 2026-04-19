@@ -106,9 +106,9 @@ The same `bytes[]` array is exposed through two different access models
 depending on the function code used:
 
 ```
-Modbus address:   addr_begin                              addr_end
-                  |                                            |
-                  v                                            v
+      addr_begin                                  addr_end
+           |                                          |
+           v                                          v
 bytes[]:   +------+------+------+------+- ... -+------+
            |  B0  |  B1  |  B2  |  B3  |       | BN-1 |
            +------+------+------+------+- ... -+------+
@@ -148,33 +148,21 @@ FC65 / FC66  (raw byte view, 1-to-1 mapping):
 ### Callback ownership model
 
 `modbus_rtu_init()` partitions the callbacks in `modbus_rtu_state_t` into two
-groups.
+groups. **Platform** callbacks are supplied by the adapter and called by the
+RTU core. **Core** callbacks are installed by `modbus_rtu_init()` and invoked
+from platform ISR context.
 
-**Platform-provided** -- the adapter passes these into `modbus_rtu_init()`;
-the RTU core calls them:
-
-| Callback | Description | ATmega328p | STM8S003F3 | STM32F103C8 |
-|----------|-------------|-----------|-----------|------------|
-| `timer_start_1t5` | Arm the hardware timer for a 1.5t inter-character gap; called on first byte received | [`tmr_start_1t5`](https://github.com/wdl83/modbus_c/blob/master/atmega328p/rtu_impl.c#L33) | [`tim_start_1t5`](https://github.com/wdl83/modbus_c/blob/master/stm8s003f3/rtu_impl.c#L36) | [`tim_start_1t5`](https://github.com/wdl83/modbus_c/blob/master/stm32f103c8/rtu_impl.c#L57) |
-| `timer_start_3t5` | Arm the hardware timer for a 3.5t silent interval; called on INIT/restart and after 1.5t expires | [`tmr_start_3t5`](https://github.com/wdl83/modbus_c/blob/master/atmega328p/rtu_impl.c#L43) | [`tim_start_3t5`](https://github.com/wdl83/modbus_c/blob/master/stm8s003f3/rtu_impl.c#L47) | [`tim_start_3t5`](https://github.com/wdl83/modbus_c/blob/master/stm32f103c8/rtu_impl.c#L70) |
-| `timer_stop` | Disable the hardware timer | [`tmr_stop`](https://github.com/wdl83/modbus_c/blob/master/atmega328p/rtu_impl.c#L53) | [`tim_stop`](https://github.com/wdl83/modbus_c/blob/master/stm8s003f3/rtu_impl.c#L58) | [`tim_stop`](https://github.com/wdl83/modbus_c/blob/master/stm32f103c8/rtu_impl.c#L83) |
-| `timer_reset` | Restart the running 1.5t counter without changing prescaler; called on bytes 2...N | [`tmr_reset`](https://github.com/wdl83/modbus_c/blob/master/atmega328p/rtu_impl.c#L62) | [`tim_reset`](https://github.com/wdl83/modbus_c/blob/master/stm8s003f3/rtu_impl.c#L68) | [`tim_reset`](https://github.com/wdl83/modbus_c/blob/master/stm32f103c8/rtu_impl.c#L93) |
-| `serial_send` | Transmit `txbuf[0..txbuf_curr)` asynchronously; reply PDU is ready | [`serial_send`](https://github.com/wdl83/modbus_c/blob/master/atmega328p/rtu_impl.c#L108) | [`serial_send` (1)](https://github.com/wdl83/modbus_c/blob/master/stm8s003f3/rtu_impl.c#L113) | [`serial_send` (1)](https://github.com/wdl83/modbus_c/blob/master/stm32f103c8/rtu_impl.c#L161) |
-
-(1) STM8S003F3 and STM32F103C8 implement `serial_send` with a stale extra
-`modbus_rtu_serial_sent_cb_t sent_cb` parameter (immediately discarded with
-`(void)sent_cb`) -- a remnant of an earlier API revision. The current
-`modbus_rtu_serial_send_t` typedef is `void (*)(modbus_rtu_state_t *)`.
-
-**Core-owned** -- `modbus_rtu_init()` installs these internally; the platform
-calls them from ISR context:
-
-| Callback | Core installs | Effect when called | ATmega328p caller | STM8S003F3 caller | STM32F103C8 caller |
-|----------|--------------|-------------------|------------------|------------------|------------------|
-| `timer_cb` | `timer_silent_interval_cb` (init), switched to `timer_inter_frame_timeout_cb` on first byte | Drives t1.5/t3.5 state transitions | `tmr_cb` <- Timer0 `OCIE0A` IRQ | `tim_cb` <- TIM4 update IRQ | `isrTIM2` <- TIM2 update IRQ |
-| `serial_recv_cb` | `serial_recv_cb` (rtu.c) -- appends byte to `rxbuf`, drives IDLE->SOF->RECV transitions, starts/resets t1.5 timer | Feeds each valid byte into the frame assembler | `usart_rx_recv_cb` <- USART0 `RXCIE0` IRQ | `uart_rx_recv_cb` <- UART1 RX IRQ | `rx_complete` <- `usart_rx_isr` <- `isrUSART1` |
-| `serial_recv_err_cb` | `serial_recv_err_cb` (rtu.c) -- sets error flag, increments `serial_recv_err_cntr` | Aborts the current frame on line errors | `usart_rx_recv_cb` <- USART0 `RXCIE0` IRQ | `uart_rx_recv_cb` <- UART1 RX IRQ | `rx_complete` <- `usart_rx_isr` <- `isrUSART1` |
-| `serial_sent_cb` | `serial_sent_cb` (rtu.c) -- resets `txbuf_curr`, transitions BUSY->INIT | Signals TX frame complete to the state machine | `usart_tx_complete_cb` <- USART0 `TXCIE0` IRQ | `uart_tx_complete_cb` <- UART1 TX IRQ | `tx_complete` <- `usart_tx_isr` <- `isrUSART1` |
+| Callback | Owner | Description | ATmega328p | STM8S003F3 | STM32F103C8 |
+|----------|-------|-------------|------------|------------|-------------|
+| `timer_start_1t5` | platform | Arm 1.5t timer on first byte | [`tmr_start_1t5`](https://github.com/wdl83/modbus_c/blob/master/atmega328p/rtu_impl.c#L33) | [`tim_start_1t5`](https://github.com/wdl83/modbus_c/blob/master/stm8s003f3/rtu_impl.c#L36) | [`tim_start_1t5`](https://github.com/wdl83/modbus_c/blob/master/stm32f103c8/rtu_impl.c#L57) |
+| `timer_start_3t5` | platform | Arm 3.5t timer on INIT / after 1.5t | [`tmr_start_3t5`](https://github.com/wdl83/modbus_c/blob/master/atmega328p/rtu_impl.c#L43) | [`tim_start_3t5`](https://github.com/wdl83/modbus_c/blob/master/stm8s003f3/rtu_impl.c#L47) | [`tim_start_3t5`](https://github.com/wdl83/modbus_c/blob/master/stm32f103c8/rtu_impl.c#L70) |
+| `timer_stop` | platform | Disable timer | [`tmr_stop`](https://github.com/wdl83/modbus_c/blob/master/atmega328p/rtu_impl.c#L53) | [`tim_stop`](https://github.com/wdl83/modbus_c/blob/master/stm8s003f3/rtu_impl.c#L58) | [`tim_stop`](https://github.com/wdl83/modbus_c/blob/master/stm32f103c8/rtu_impl.c#L83) |
+| `timer_reset` | platform | Restart 1.5t counter (bytes 2..N) | [`tmr_reset`](https://github.com/wdl83/modbus_c/blob/master/atmega328p/rtu_impl.c#L62) | [`tim_reset`](https://github.com/wdl83/modbus_c/blob/master/stm8s003f3/rtu_impl.c#L68) | [`tim_reset`](https://github.com/wdl83/modbus_c/blob/master/stm32f103c8/rtu_impl.c#L93) |
+| `serial_send` | platform | Transmit `txbuf[0..txbuf_curr)` async | [`serial_send`](https://github.com/wdl83/modbus_c/blob/master/atmega328p/rtu_impl.c#L108) | [`serial_send`](https://github.com/wdl83/modbus_c/blob/master/stm8s003f3/rtu_impl.c#L113) | [`serial_send`](https://github.com/wdl83/modbus_c/blob/master/stm32f103c8/rtu_impl.c#L161) |
+| `timer_cb` | core | Drives t1.5/t3.5 state transitions | [`tmr_cb`](https://github.com/wdl83/modbus_c/blob/master/atmega328p/rtu_impl.c#L26) (Timer0 `OCIE0A`) | [`tim_cb`](https://github.com/wdl83/modbus_c/blob/master/stm8s003f3/rtu_impl.c#L28) (TIM4) | [`isrTIM2`](https://github.com/wdl83/modbus_c/blob/master/stm32f103c8/rtu_impl.c#L20) (TIM2) |
+| `serial_recv_cb` | core | Feeds byte into frame assembler; drives IDLE->SOF->RECV; starts/resets t1.5 | [`usart_rx_recv_cb`](https://github.com/wdl83/modbus_c/blob/master/atmega328p/rtu_impl.c#L81) (USART0 `RXCIE0`) | [`uart_rx_recv_cb`](https://github.com/wdl83/modbus_c/blob/master/stm8s003f3/rtu_impl.c#L87) (UART1 RX) | [`rx_complete`](https://github.com/wdl83/modbus_c/blob/master/stm32f103c8/rtu_impl.c#L128) (`isrUSART1`) |
+| `serial_recv_err_cb` | core | Sets error flag; increments `serial_recv_err_cntr` | [`usart_rx_recv_cb`](https://github.com/wdl83/modbus_c/blob/master/atmega328p/rtu_impl.c#L81) (USART0 `RXCIE0`) | [`uart_rx_recv_cb`](https://github.com/wdl83/modbus_c/blob/master/stm8s003f3/rtu_impl.c#L87) (UART1 RX) | [`rx_complete`](https://github.com/wdl83/modbus_c/blob/master/stm32f103c8/rtu_impl.c#L128) (`isrUSART1`) |
+| `serial_sent_cb` | core | Resets `txbuf_curr`; BUSY->INIT | [`usart_tx_complete_cb`](https://github.com/wdl83/modbus_c/blob/master/atmega328p/rtu_impl.c#L101) (USART0 `TXCIE0`) | [`uart_tx_complete_cb`](https://github.com/wdl83/modbus_c/blob/master/stm8s003f3/rtu_impl.c#L106) (UART1 TX) | [`tx_complete`](https://github.com/wdl83/modbus_c/blob/master/stm32f103c8/rtu_impl.c#L153) (`isrUSART1`) |
 
 The application additionally provides `pdu_cb` (invoked by the core after a
 CRC-valid frame arrives in EOF->IDLE transition) and optional `suspend_cb` /
